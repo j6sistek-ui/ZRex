@@ -8,4 +8,4 @@ const result = spawnSync(process.execPath, [cli,
   '500', path.join(addon, 'tests/game-mode-fixture.lua')], { encoding: 'utf8' });
 process.stdout.write(result.stdout || '');
 process.stderr.write(result.stderr || '');
-if (result.status !== 0 || !result.stdout.includes('ALL TWINS MENU CHECKS PASSED 28')) process.exit(1);
+if (result.status !== 0 || !result.stdout.includes('ALL TWINS MENU CHECKS PASSED 36')) process.exit(1);

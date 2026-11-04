@@ -11,6 +11,18 @@ autoexec owner_twins_armory_init()
 {
     level callback::add( #"player_spawned", &owner_twins_register );
     level thread owner_twins_register();
+    level thread owner_twins_mark( "boot", "autoexec reached" );
+}
+
+function owner_twins_mark( stage, detail )
+{
+    // Local receipts expose actual server progress independently of menu logging.
+    nengine_store_set( "owner_twins_runtime", "build", "native-card1" );
+    nengine_store_set( "owner_twins_runtime", "map", level.mapname ?? "pending" );
+    nengine_store_set( "owner_twins_runtime", "time_ms", gettime() );
+    nengine_store_set( "owner_twins_runtime", "stage", stage );
+    nengine_store_set( "owner_twins_runtime", "detail", detail );
+    nengine_store_save( "owner_twins_runtime", stage );
 }
 
 function owner_twins_register( params )
@@ -22,13 +34,17 @@ function owner_twins_register( params )
     level callback::add( "currency_sub", &owner_twins_currency_sub );
     level callback::add( "currency_add", &owner_twins_currency_add );
     logstring( "OWNER_TWINS purchase callback registered" );
+    level thread owner_twins_mark( "listener", "native purchase callback registered" );
 }
 
 function owner_twins_event( channel, value )
 {
     // Isolate failures/cancellation from the stock player's synchronous LUI listener.
     if ( channel == "owner_twins_armory_purchase" )
+    {
+        level thread owner_twins_mark( "request", "native purchase event received" );
         self thread owner_twins_purchase( channel, value );
+    }
 }
 
 function owner_twins_price()
@@ -40,6 +56,7 @@ function owner_twins_message( text )
 {
     self iprintlnbold( text );
     logstring( "OWNER_TWINS " + text );
+    level thread owner_twins_mark( "result", text );
 }
 
 function owner_twins_has_mask()

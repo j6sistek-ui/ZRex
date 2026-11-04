@@ -2,13 +2,15 @@
 
 Dark Flare summons one full-size Z-Rex ally for up to 240 seconds. The base upgrade and both augment variants keep their native identity, cost and loadout selection. This is original offline mod source; no game assets or third-party mod packages are included.
 
-The separate [Twins Mask Arsenal addon](addons/twins-armory/README.md) adds a native, controller-navigable purchase option on Rex Infernus. Its source and 28 UI boundary checks are included independently of the Z-Rex package.
+The separate [Twins Mask Arsenal addon](addons/twins-armory/README.md) extends the native Ammo Mods catalog on Rex Infernus. Its source and 36 native-contract checks are included independently of the Z-Rex package; actual selection and purchase still need an owner retest.
 
 The current revision addresses an observed failed setup that left adults behind, permitted repeated summons and never started the successful-use timer. It keeps the owner reserved until the tracked actor is actually gone, schedules deletion independently of accessory cleanup, and attempts reachable hostile and owner-follow goals. A stuck close target can trigger a repositioning attempt. Attributed toxic/roar offspring are removed. The native friendly outline is refreshed and only this ally's hostile boss bar is hidden; green overhead names are not verified.
 
 ## Compatibility and status
 
 The requested target is every Zombies map. There is no fixed map allowlist. A map must actually have the donor AI, settings, required scriptables and usable creature navigation. Missing definitions produce a refunded attempt instead of a blind spawn. This code does not provide a general fastfile loader or prove every map is supported. The passive receiver script records available definitions without spawning anything.
+
+The owner-run Ashes test confirms that the corrected scripts link, but its candidate Z-Rex chain is unavailable. The bike works there. The inspected donor is in Rex's map package; a usable all-map import/load route remains unfinished. See [cross-map status](docs/CROSS_MAP_STATUS.md).
 
 Version 0.2.1 removes two development-only native functions that prevented the preceding build from linking during normal play. After creation, it waits for the owned actor's two native leg helpers before accepting use. The passive scan records a leg reference separately from unverified registration. Native construction and each map's complete asset dependencies still need runtime validation.
 

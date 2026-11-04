@@ -4,7 +4,7 @@ This is newly authored mod source, tests and documentation. Keep stock game file
 
 The prototype uses a full-size Z-Rex, one per player, for 240 seconds. The owner requires every Zombies map. Test each map's actual donor assets and creature navigation; there is no fixed Rex-only allowlist. Cross-map loading and gameplay remain unverified. It replaces Dark Flare and both augment aliases. The separately installed Blood Burner/Healing Aura package is independent. A source or mocked-menu pass is not gameplay acceptance.
 
-`addons/twins-armory` is a separate authored package for a fixed 500-salvage native Twins Mask purchase on Rex Infernus. Keep its server checks, standard Ammo Mod entries, existing default focus and independent controller graph intact. Do not broaden its map scope or include the separately supplied Blood Burner source.
+`addons/twins-armory` is a separate authored package for a fixed 500-salvage native Twins Mask purchase on Rex Infernus. It appends one cloned record to the native Ammo Mods category and lets the stock grid own focus, scrolling and input. Preserve all original records, category/filter contracts and other purchase menus. The former floating button and manual focus-edge splice were inaccessible in an owner test and are superseded. Keep server checks and do not broaden map support or bundle third-party Blood Burner source.
 
 ## Checks and container workflow
 
