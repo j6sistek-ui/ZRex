@@ -2,6 +2,8 @@
 
 Dark Flare summons one full-size Z-Rex ally for up to 240 seconds. The base upgrade and both augment variants keep their native identity, cost and loadout selection. This is original offline mod source; no game assets or third-party mod packages are included.
 
+The separate [Twins Mask Arsenal addon](addons/twins-armory/README.md) adds a native, controller-navigable purchase option on Rex Infernus. Its source and 28 UI boundary checks are included independently of the Z-Rex package.
+
 The current revision addresses an observed failed setup that left adults behind, permitted repeated summons and never started the successful-use timer. It keeps the owner reserved until the tracked actor is actually gone, schedules deletion independently of accessory cleanup, and attempts reachable hostile and owner-follow goals. A stuck close target can trigger a repositioning attempt. Attributed toxic/roar offspring are removed. The native friendly outline is refreshed and only this ally's hostile boss bar is hidden; green overhead names are not verified.
 
 ## Compatibility and status

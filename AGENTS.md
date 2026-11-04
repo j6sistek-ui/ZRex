@@ -4,6 +4,8 @@ This is newly authored mod source, tests and documentation. Keep stock game file
 
 The prototype uses a full-size Z-Rex, one per player, for 240 seconds. The owner requires every Zombies map. Test each map's actual donor assets and creature navigation; there is no fixed Rex-only allowlist. Cross-map loading and gameplay remain unverified. It replaces Dark Flare and both augment aliases. The separately installed Blood Burner/Healing Aura package is independent. A source or mocked-menu pass is not gameplay acceptance.
 
+`addons/twins-armory` is a separate authored package for a fixed 500-salvage native Twins Mask purchase on Rex Infernus. Keep its server checks, standard Ammo Mod entries, existing default focus and independent controller graph intact. Do not broaden its map scope or include the separately supplied Blood Burner source.
+
 ## Checks and container workflow
 
 Prefer `docker build -t zrex-ally-tests .` followed by `docker run --rm zrex-ally-tests` for menu tests. The image installs only the lockfile-pinned test dependency with lifecycle scripts disabled. Do not install host system packages. If Docker is unavailable, an existing Node runtime and workspace-only dependencies can run `npm test`.
