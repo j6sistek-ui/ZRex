@@ -25,7 +25,7 @@ function owner_zrex_mark( file, phase )
 {
     map = level.mapname ?? "pending";
     logstring( "OWNER_ZREX " + phase + " map=" + map );
-    nengine_store_set( "owner_zrex_poc", "build", "move3" );
+    nengine_store_set( "owner_zrex_poc", "build", "move3r1" );
     nengine_store_set( "owner_zrex_poc", "map", map );
     nengine_store_set( "owner_zrex_poc", "time_ms", gettime() );
     nengine_store_set( "owner_zrex_poc", "phase", phase );
@@ -141,7 +141,7 @@ function owner_zrex_begin()
 
     type = owner_zrex_receiver_type();
     if ( !isdefined( type ) )
-        return self owner_zrex_block( "This map has no verified Z-Rex asset set." );
+        return self owner_zrex_block( "This map has no candidate Z-Rex asset chain." );
 
     spot = self owner_zrex_find_spot();
     if ( !isdefined( spot ) )
@@ -189,6 +189,12 @@ function owner_zrex_begin()
     level thread owner_zrex_evidence( ticket, "converted", "turn helper returned" );
     ticket.settle_until = gettime() + 2500;
     failure = owner_zrex_wait_for_turn( ticket );
+    if ( failure != "" )
+    {
+        owner_zrex_retire( ticket, failure );
+        return self owner_zrex_block( "Z-Rex: " + failure );
+    }
+    failure = owner_zrex_wait_for_parts( ticket );
     if ( failure != "" )
     {
         owner_zrex_retire( ticket, failure );
@@ -280,14 +286,16 @@ function owner_zrex_receiver_type()
         sub = getscriptbundle( hashcat( %"hash_138dab78b1b28a0f", ai.subclass ) );
         if ( !isdefined( sub ) || !isdefined( sub.name ) )
             continue;
-        name = isxhash( sub.name ) ? getxhashsourcename( sub.name ) : sub.name;
-        if ( name != "zombie_phobos" && !( isxhash( sub.name ) && sub.name == %"zombie_phobos" ) )
+        // Production builds cannot link the developer-only source-name resolver.
+        if ( sub.name != "zombie_phobos" && sub.name != %"zombie_phobos" && sub.name != #"zombie_phobos" )
             continue;
         settings = getscriptbundle( "zombieaisettings:" + ai.zombieaisetting );
         if ( !isdefined( settings ) || !isdefined( settings.var_394d3c5e6fa40c50 ) )
             continue;
         config = getscriptbundle( settings.var_394d3c5e6fa40c50 );
-        if ( isdefined( config ) && isdefined( config.legscriptable ) && isscriptabledefined( config.legscriptable ) )
+        // A leg reference is metadata, not proof of live scriptable registration.
+        // Verify two native leg instances on our returned actor before accepting it.
+        if ( isdefined( config ) && isdefined( config.legscriptable ) )
             return type;
     }
     return undefined;
@@ -338,6 +346,30 @@ function owner_zrex_wait_for_turn( ticket )
         waitframe();
     }
     return failure;
+}
+
+// Native collision worker creates these exact two instances after its spine waits.
+// Installed Scarab CRC 990e4908 / worker 5ca180ef matches reference lines 65-90.
+function owner_zrex_wait_for_parts( ticket )
+{
+    while ( gettime() < ticket.setup_watchdog )
+    {
+        if ( istrue( ticket.closed ) ) return ticket.reason ?? "cleanup already started";
+        actor = ticket.actor;
+        if ( !isdefined( ticket.owner ) || !isalive( ticket.owner ) ) return "owner unavailable";
+        if ( !isdefined( actor ) || !isalive( actor ) ) return "actor unavailable";
+        if ( actor getentitynumber() != ticket.actor_id || actor.owner_zrex_ticket != ticket )
+            return "actor ownership changed";
+        legs = actor.var_3f696ebfb0ffe19b;
+        if ( isarray( legs ) && legs.size == 2 && isdefined( legs[0] ) && isdefined( legs[1] ) )
+        {
+            ticket.native_legs_ready = 1;
+            level thread owner_zrex_evidence( ticket, "native_parts", "two exact-actor native leg instances" );
+            return "";
+        }
+        waitframe();
+    }
+    return "native Z-Rex legs did not initialize";
 }
 
 function owner_zrex_find_spot()
@@ -501,6 +533,7 @@ function owner_zrex_evidence( ticket, stage, why )
     nengine_store_set( "owner_zrex_v3", "speed", speed );
     nengine_store_set( "owner_zrex_v3", "path_left", path_left );
     nengine_store_set( "owner_zrex_v3", "owner_distance", owner_dist );
+    nengine_store_set( "owner_zrex_v3", "native_legs_ready", ticket.native_legs_ready ?? 0 );
     nengine_store_set( "owner_zrex_v3", "creature_nav_at_spawn", ticket.nav_at_spawn ?? -1 );
     nengine_store_set( "owner_zrex_v3", "creature_exit_found", ticket.walk_exit ?? -1 );
     nengine_store_save( "owner_zrex_v3", ticket.key + "_" + stage );

@@ -1,7 +1,7 @@
 {
     "name": "Z-Rex Ally (POC)",
     "author": "Local prototype",
-    "version": "0.2.0-poc",
+    "version": "0.2.1-poc",
     "type": "script",
     "description": "Dark Flare summons one full-size allied Z-Rex for 240 seconds. Checks each map's available assets; no quest prerequisite. Movement and cross-map runtime validation pending."
 }

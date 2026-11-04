@@ -33,7 +33,7 @@ function owner_zrxscan_measure( map )
     // Clear only this diagnostic namespace. A partial run must never inherit
     // old "complete" fields from another map or an earlier visit to this one.
     nengine_store_clear( "owner_zrex_receiver" );
-    nengine_store_set( "owner_zrex_receiver", "build", "passive2" );
+    nengine_store_set( "owner_zrex_receiver", "build", "passive3" );
     nengine_store_set( "owner_zrex_receiver", "map", map );
     nengine_store_set( "owner_zrex_receiver", "time_ms", gettime() );
     owner_zrxscan_checkpoint( map, "checking navigation and shared controller" );
@@ -75,9 +75,9 @@ function owner_zrxscan_measure( map )
         isdefined( subclass ) && isdefined( subclass.name ) && subclass.name == "zombie_phobos" );
     owner_zrxscan_type( map, "scarab", "actor_sat_spawner_zombie_phobos_zm" );
     owner_zrxscan_type( map, "subclass", "actor_zombie_phobos" );
-    nengine_store_set( "owner_zrex_receiver", "scope", "direct names only; no remap, spawn, mesh, animation or FX test" );
+    nengine_store_set( "owner_zrex_receiver", "scope", "direct names only; no registration, remap, spawn, mesh, animation or FX test" );
     owner_zrxscan_checkpoint( map, "complete" );
-    logstring( "OWNER_ZRXSCAN passive2 recorded " + map );
+    logstring( "OWNER_ZRXSCAN passive3 recorded " + map );
 }
 
 function owner_zrxscan_checkpoint( map, phase )
@@ -96,8 +96,8 @@ function owner_zrxscan_label( value )
 {
     if ( !isdefined( value ) )
         return "-";
-    if ( isxhash( value ) )
-        return "" + getxhashsourcename( value );
+    if ( isxhash( value ) || isxhashasset( value ) )
+        return "" + getxhashhexname( value );
     return "" + value;
 }
 
@@ -134,6 +134,7 @@ function owner_zrxscan_type( map, prefix, name )
     nengine_store_set( "owner_zrex_receiver", prefix + "_settings_bundle", isdefined( settings ) );
     nengine_store_set( "owner_zrex_receiver", prefix + "_behavior_bundle", isdefined( behavior ) );
     nengine_store_set( "owner_zrex_receiver", prefix + "_leg_ref", owner_zrxscan_label( leg ) );
-    owner_zrxscan_checkpoint( map, prefix + ": checking leg registration" );
-    nengine_store_set( "owner_zrex_receiver", prefix + "_leg_registered", isdefined( leg ) && isscriptabledefined( leg ) );
+    owner_zrxscan_checkpoint( map, prefix + ": recording leg reference only" );
+    nengine_store_set( "owner_zrex_receiver", prefix + "_leg_ref_present", isdefined( leg ) );
+    nengine_store_set( "owner_zrex_receiver", prefix + "_leg_registration_status", "unverified" );
 }
