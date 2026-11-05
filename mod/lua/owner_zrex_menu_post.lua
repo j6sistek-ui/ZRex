@@ -1,4 +1,4 @@
--- Full-size Z-Rex ally POC: presentation for the existing Dark Flare slot.
+-- Ally validation prototype: presentation for the existing Dark Flare slot.
 -- Stock item identity, icon and loadout storage are intentionally inherited.
 local previous = rawget(_G, "OwnerZRexMenu")
 if type(previous) == "table" and type(previous.refresh) == "function" then
@@ -12,8 +12,8 @@ rawset(_G, "OwnerZRexMenu", state)
 local refs = { "super_dark_flare", "super_dark_flare_13s", "super_dark_flare_shadow_ball" }
 local nameKey = "owner_zrex_field_upgrade_name"
 local descriptionKey = "owner_zrex_field_upgrade_description"
-local title = "Z-Rex Ally (POC)"
-local description = "Summon a full-size Z-Rex ally to fight for you for 240 seconds. Needs open ground. Map compatibility testing is in progress."
+local title = "Ally Summon (Prototype)"
+local description = "Summon one ally for up to 240 seconds. Defaults to Uber Klaus for testing. Requires locally available creature assets and open ground."
 local hashes, lootIds, indexes = {}, {}, {}
 local hooked = setmetatable({}, { __mode = "k" })
 local proxies = setmetatable({}, { __mode = "kv" })

@@ -1,24 +1,26 @@
-# Z-Rex Ally prototype
+# Timed ally prototype
 
-Dark Flare summons one full-size Z-Rex ally for up to 240 seconds. The base upgrade and both augment variants keep their native identity, cost and loadout selection. This is original offline mod source; no game assets or third-party mod packages are included.
+Dark Flare summons one ally for up to 240 seconds. The default validation profile is **Uber Klaus**, using existing creature assets to test the same ownership, conversion, movement, damage and cleanup controller. The experimental full-size Z-Rex profile remains available explicitly; its cross-map loading is unfinished. The base upgrade and both augment variants keep their native identity, cost and loadout selection. This is original offline mod source; no game assets or third-party mod packages are included.
 
 The separate [Twins Mask Arsenal addon](addons/twins-armory/README.md) extends the native Ammo Mods catalog on Rex Infernus. Its source and 36 native-contract checks are included independently of the Z-Rex package; actual selection and purchase still need an owner retest.
 
-The current revision addresses an observed failed setup that left adults behind, permitted repeated summons and never started the successful-use timer. It keeps the owner reserved until the tracked actor is actually gone, schedules deletion independently of accessory cleanup, and attempts reachable hostile and owner-follow goals. A stuck close target can trigger a repositioning attempt. Attributed toxic/roar offspring are removed. The native friendly outline is refreshed and only this ally's hostile boss bar is hidden; green overhead names are not verified.
+The controller keeps the owner reserved until the tracked actor is actually gone, schedules deletion independently of accessory cleanup, and attempts reachable hostile and owner-follow goals. A stuck close target can trigger a repositioning attempt. Z-Rex-specific parts, encounter guards and offspring cleanup apply only to that profile. The Klaus profile suppresses its own exploding-core ejection. The native friendly outline is refreshed and only this ally's hostile boss bar is hidden; green overhead names are not verified.
 
 ## Compatibility and status
 
-The requested target is every Zombies map. There is no fixed map allowlist. A map must actually have the donor AI, settings, required scriptables and usable creature navigation. Missing definitions produce a refunded attempt instead of a blind spawn. This code does not provide a general fastfile loader or prove every map is supported. The passive receiver script records available definitions without spawning anything.
+The requested target is every Zombies map. There is no fixed map allowlist. The selected profile must resolve to available AI/settings and usable creature navigation in the current match. Missing definitions produce a refunded attempt; an unavailable Z-Rex never silently becomes Klaus. This code does not provide a general fastfile loader or prove every map is supported. The passive receiver script remains a Z-Rex inventory and never spawns anything.
 
-The owner-run Ashes test confirms that the corrected scripts link, but its candidate Z-Rex chain is unavailable. The bike works there. The inspected donor is in Rex's map package; a usable all-map import/load route remains unfinished. See [cross-map status](docs/CROSS_MAP_STATUS.md).
+The earlier owner-run Ashes test confirmed that the previous scripts linked, but its candidate Z-Rex chain was unavailable. The bike worked there. The new Klaus profile has not had a live match test. The inspected Z-Rex donor is in Rex's map package; a usable all-map import/load route remains unfinished. See [cross-map status](docs/CROSS_MAP_STATUS.md).
 
-Version 0.2.1 removes two development-only native functions that prevented the preceding build from linking during normal play. After creation, it waits for the owned actor's two native leg helpers before accepting use. The passive scan records a leg reference separately from unverified registration. Native construction and each map's complete asset dependencies still need runtime validation.
+Version 0.3.0 adds an explicit resident-enemy validation profile. Both profiles use the same four-minute limit, one-owner reservation, friendly conversion, player-damage guard and verified deletion path. Klaus uses smaller placement distances and its own initialization checks. Only Z-Rex waits for its two native leg helpers. A successful Klaus test would validate the shared controller for Klaus; it would not validate Z-Rex's size, attacks, navigation or foreign asset loading.
 
-Native compilation, shared-script dependency inspection, source review and menu tests are separate from gameplay acceptance. Retest movement, actual enemy damage, one-adult ownership, four-minute expiry and each receiver map. Keep full size until this proof works.
+Native compilation, shared-script dependency inspection, source review and menu tests are separate from gameplay acceptance. Retest movement, actual enemy damage, one-ally ownership, four-minute expiry and each receiver map. Keep full size until this proof works.
 
 ## Offline installation
 
-Close the game. Back up the existing `owner_zrex_poc` package, then put the contents of `mod/` in the **offline** `cod25/kronos/mods/owner_zrex_poc` folder. Enable the package in Kronos Library and restart. Choose the Dark Flare slot and use it once on open ground. Never install into the retail Steam copy. Disable the package and restart to restore the native Dark Flare behavior.
+Close the game. Back up the existing `owner_zrex_poc` package, then put the contents of `mod/` in the **offline** `cod25/kronos/mods/owner_zrex_poc` folder. Enable the package in Kronos Library and restart. Choose **Ally Summon (Prototype)** in the original Dark Flare slot and use it once on open ground. Nothing spawns automatically on map load. Never install into the retail Steam copy. Disable the package and restart to restore the native Dark Flare behavior.
+
+The `owner_ally_profile` console setting defaults to `uber_klaus`; `zrex` selects the original full-size experimental actor. Unknown profile values are rejected. Set the desired profile before starting a fresh match. The generic menu name covers both profiles; the activation message and receipts identify the selected creature. See [validation steps](docs/ALLY_VALIDATION.md).
 
 If creation has an unknown result, the owner slot deliberately stays locked for that match; start a fresh match after diagnosis rather than repeatedly creating adults. Do not infer allegiance from nameplate color alone.
 

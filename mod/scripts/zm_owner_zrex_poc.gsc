@@ -25,7 +25,7 @@ function owner_zrex_mark( file, phase )
 {
     map = level.mapname ?? "pending";
     logstring( "OWNER_ZREX " + phase + " map=" + map );
-    nengine_store_set( "owner_zrex_poc", "build", "move3r1" );
+    nengine_store_set( "owner_zrex_poc", "build", "ally1" );
     nengine_store_set( "owner_zrex_poc", "map", map );
     nengine_store_set( "owner_zrex_poc", "time_ms", gettime() );
     nengine_store_set( "owner_zrex_poc", "phase", phase );
@@ -122,46 +122,88 @@ function owner_zrex_block( reason )
     return false;
 }
 
+function owner_zrex_profile()
+{
+    kind = getdvar( "owner_ally_profile" );
+    if ( kind == "" ) kind = "uber_klaus";
+    if ( kind != "uber_klaus" && kind != "zrex" ) return undefined;
+    profile = spawnstruct();
+    profile.kind = kind;
+    rex = kind == "zrex";
+    profile.label = rex ? "Z-Rex" : "Uber Klaus";
+    profile.subclass = rex ? "zombie_phobos" : "zombie_viper";
+    // No other species, mini-core, HVT, or silent fallback is eligible.
+    profile.types = rex ? [ "sat_spawner_zombie_phobos_zm", "zombie_phobos" ] : [ "sat_spawner_zombie_viper_zm" ];
+    // Conservative placement proxies, not measured native collision bounds.
+    profile.spawn_range = rex ? 448 : 192;
+    profile.radius = rex ? 128 : 32;
+    profile.height = rex ? 320 : 100;
+    profile.ai_clearance = rex ? 176 : 64;
+    profile.player_clearance = rex ? 192 : 96;
+    profile.nav_snap = rex ? 192 : 64;
+    profile.nav_close = rex ? 96 : 32;
+    profile.exit_distance = rex ? 330 : 160;
+    profile.exit_minimum = rex ? 192 : 80;
+    profile.contact_range = rex ? 240 : 96;
+    profile.target_gap = rex ? 160 : 48;
+    profile.standoff = rex ? 310 : 128;
+    profile.standoff_minimum = rex ? 160 : 64;
+    profile.owner_stop = rex ? 400 : 160;
+    profile.owner_gap = rex ? 240 : 96;
+    return profile;
+}
+
 function owner_zrex_begin()
 {
     owner_zrex_mark( "use", "Dark Flare begin" );
+    profile = owner_zrex_profile();
+    if ( !isdefined( profile ) )
+        return self owner_zrex_block( "Unknown ally profile. Use uber_klaus or zrex." );
     if ( !isdefined( level.mapname ) || !( utility::iszm() || isstartstr( "" + level.mapname, "zm_" ) ) )
-        return self owner_zrex_block( "The Z-Rex requires a Zombies match." );
+        return self owner_zrex_block( "Ally Summon requires a Zombies match." );
     if ( !isalive( self ) || !isdefined( self.team ) )
-        return self owner_zrex_block( "Spawn before calling the Z-Rex." );
+        return self owner_zrex_block( "Spawn before calling your ally." );
     owner_id = self getentitynumber();
     if ( !isdefined( level.owner_zrex_reservations ) )
         level.owner_zrex_reservations = [];
     if ( isdefined( self.owner_zrex_ticket ) || isdefined( level.owner_zrex_reservations[owner_id] ) )
-        return self owner_zrex_block( "Your Z-Rex is already active." );
-    if ( owner_zrex_map_uses_boss( undefined ) )
+        return self owner_zrex_block( "Your ally is already active or awaiting cleanup." );
+    if ( profile.kind == "zrex" && owner_zrex_map_uses_boss( undefined ) )
         return self owner_zrex_block( "The map has reserved its Z-Rex encounter." );
     if ( !utility::issharedfuncdefined( #"zombie_utils", #"turn_ai" ) )
         return self owner_zrex_block( "The ally controller is unavailable." );
 
-    type = owner_zrex_receiver_type();
+    type = owner_zrex_receiver_type( profile );
     if ( !isdefined( type ) )
-        return self owner_zrex_block( "This map has no candidate Z-Rex asset chain." );
+        return self owner_zrex_block( "This map has no candidate " + profile.label + " asset chain." );
 
-    spot = self owner_zrex_find_spot();
+    spot = self owner_zrex_find_spot( profile );
     if ( !isdefined( spot ) )
-        return self owner_zrex_block( "Find open ground for your Z-Rex." );
+        return self owner_zrex_block( "Find open ground for your " + profile.label + "." );
 
     if ( !istrue( level.owner_zrex_guards ) )
     {
         // Stock pattern: zm_maneki_neko:39-56; damage:585-595,14215-14224.
         damage::register_scripted_damage_override_func( &owner_zrex_player_damage );
-        level callback::add( "on_zombie_phobos_spawn_empowered", &owner_zrex_puke_add );
-        level callback::add( "on_zombie_phobos_spawn_roared", &owner_zrex_puke_add );
-        level callback::add( "on_zombie_phobos_spawn_parasite", &owner_zrex_puke_add );
         level callback::add( "on_zombie_ai_damaged", &owner_zrex_hit );
         level.owner_zrex_guards = 1;
     }
+    if ( profile.kind == "zrex" && !istrue( level.owner_zrex_phobos_guards ) )
+    {
+        level callback::add( "on_zombie_phobos_spawn_empowered", &owner_zrex_puke_add );
+        level callback::add( "on_zombie_phobos_spawn_roared", &owner_zrex_puke_add );
+        level callback::add( "on_zombie_phobos_spawn_parasite", &owner_zrex_puke_add );
+        level.owner_zrex_phobos_guards = 1;
+    }
+    // Bound the short receipt prefix rather than relying on native 32-byte truncation.
+    if ( ( level.owner_zrex_sequence ?? 0 ) >= 999999 )
+        return self owner_zrex_block( "Ally summon receipt limit reached for this match." );
     ticket = spawnstruct();
+    ticket.profile = profile;
     ticket.owner = self;
     ticket.owner_id = owner_id;
     level.owner_zrex_sequence = ( level.owner_zrex_sequence ?? 0 ) + 1;
-    ticket.key = "" + level.mapname + "_" + ticket.owner_id + "_" + gettime() + "_" + level.owner_zrex_sequence;
+    ticket.key = "a" + level.owner_zrex_sequence + "_" + gettime();
     self.owner_zrex_ticket = ticket;
     level.owner_zrex_reservations[owner_id] = ticket;
     ticket.factory_until = gettime() + 8000;
@@ -170,19 +212,30 @@ function owner_zrex_begin()
     while ( !istrue( ticket.factory_returned ) && gettime() < ticket.factory_until )
         waitframe();
     if ( !istrue( ticket.factory_returned ) || istrue( ticket.factory_uncertain ) )
-        return self owner_zrex_block( "Z-Rex creation timed out. This summon stays locked for safety." );
+        return self owner_zrex_block( profile.label + " creation timed out. This summon stays locked for safety." );
     actor = ticket.actor;
     if ( !isdefined( actor ) || istrue( ticket.closed ) )
-        return self owner_zrex_block( "The Z-Rex could not spawn." );
+        return self owner_zrex_block( "The " + profile.label + " could not spawn." );
     actor.b_ignore_cleanup = 1;
     actor.b_cleanup_no_respawn = 1;
     actor.ignore_enemy_count = 1;
     actor.no_powerups = 1;
-    actor.puke_zombies_no_powerups = 1;
-    // Spawn one ally. In zombie_phobos_roar:215-223,328-334 these are the per-actor
-    // parasite switch and the replacement callback for ordinary roar spawns.
-    actor.var_e46525bdff4f9d3b = 1;
-    actor.var_4da43c6a7a1311e9 = &owner_zrex_no_roar_adds;
+    if ( profile.kind == "zrex" )
+    {
+        actor.puke_zombies_no_powerups = 1;
+        // Per-actor Phobos parasite switch and ordinary roar replacement callback.
+        actor.var_e46525bdff4f9d3b = 1;
+        actor.var_4da43c6a7a1311e9 = &owner_zrex_no_roar_adds;
+    }
+    else
+    {
+        failure = owner_zrex_wait_for_klaus( ticket );
+        if ( failure != "" )
+        {
+            owner_zrex_retire( ticket, failure );
+            return self owner_zrex_block( profile.label + ": " + failure );
+        }
+    }
     // Level-owned cleanup survives an activation thread interrupted during the AI's startup.
     actor utility::callsharedfunc( #"zombie_utils", #"turn_ai", self );
     // Initialization and conversion may take game time. Measure settle AFTER the call returns.
@@ -192,21 +245,21 @@ function owner_zrex_begin()
     if ( failure != "" )
     {
         owner_zrex_retire( ticket, failure );
-        return self owner_zrex_block( "Z-Rex: " + failure );
+        return self owner_zrex_block( profile.label + ": " + failure );
     }
     failure = owner_zrex_wait_for_parts( ticket );
     if ( failure != "" )
     {
         owner_zrex_retire( ticket, failure );
-        return self owner_zrex_block( "Z-Rex: " + failure );
+        return self owner_zrex_block( profile.label + ": " + failure );
     }
     // Player-nav placement and a free generic capsule are not proof a full-size Rex can walk.
     // No teleport. Require its own actual nav point plus a reachable exit; otherwise refund.
     if ( !owner_zrex_creature_clearance( ticket ) )
     {
-        failure = ticket.reason ?? "no full-size creature path out of this spot";
+        failure = ticket.reason ?? "no creature path out of this spot";
         owner_zrex_retire( ticket, failure );
-        return self owner_zrex_block( "Z-Rex: " + failure );
+        return self owner_zrex_block( profile.label + ": " + failure );
     }
     actor setthreatbiasgroup( "team_players" );
     actor setsafeguardent( self );
@@ -215,7 +268,7 @@ function owner_zrex_begin()
     level notify( #"highvis_reload_outline", self.team, [actor] );
     level thread owner_zrex_evidence( ticket, "accepted", "live turned actor on owner team" );
     logstring( "OWNER_ZREX spawned owner=" + self getentitynumber() + " actor=" + actor getentitynumber() );
-    self iprintlnbold( "Z-Rex ally active for four minutes." );
+    self iprintlnbold( profile.label + " ally active for four minutes." );
     self thread owner_zrex_finish_button( self supers_mp::getcurrentsuper() );
     return true;
 }
@@ -244,6 +297,9 @@ function owner_zrex_factory( ticket, type, spot, angles, team )
         if ( level.owner_zrex_reservations[ticket.owner_id] == ticket ) level.owner_zrex_reservations[ticket.owner_id] = undefined;
         return;
     }
+    // Native Viper death snapshots this flag before its delayed mini-core spawn.
+    // Set it before any yielding startup/watch/turn work, only on our returned actor.
+    if ( ticket.profile.kind == "uber_klaus" ) actor.var_c3746c711044489d = 1;
     ticket.actor = actor;
     actor.owner_zrex_ticket = ticket;
     ticket.actor_id = actor getentitynumber();
@@ -264,11 +320,11 @@ function owner_zrex_factory( ticket, type, spot, angles, team )
     level thread owner_zrex_evidence( ticket, "created", type );
 }
 
-function owner_zrex_receiver_type()
+function owner_zrex_receiver_type( profile )
 {
     // Scarab boss-rush uses the first ref. DOA's ztron_enemy.gsc:167,522 passes the second
     // subclass through the same factory. A registered name alone is insufficient.
-    foreach ( type in [ "sat_spawner_zombie_phobos_zm", "zombie_phobos" ] )
+    foreach ( type in profile.types )
     {
         resolved = function_b3988325430ce242( type ) ?? type;
         if ( !isstartstr( resolved, "actor_" ) )
@@ -278,7 +334,7 @@ function owner_zrex_receiver_type()
         if ( !isdefined( resolved ) || !isaitypenamevalid( resolved ) )
             continue;
         // Bind2 already produced a live actor from this exact pair in the owner’s match.
-        if ( "" + level.mapname == "zm_sat_scarab" && type == "sat_spawner_zombie_phobos_zm" )
+        if ( profile.kind == "zrex" && "" + level.mapname == "zm_sat_scarab" && type == "sat_spawner_zombie_phobos_zm" )
             return type;
         ai = getaitypescriptbundle( resolved );
         if ( !isdefined( ai ) || !isdefined( ai.subclass ) || !isdefined( ai.zombieaisetting ) )
@@ -287,7 +343,9 @@ function owner_zrex_receiver_type()
         if ( !isdefined( sub ) || !isdefined( sub.name ) )
             continue;
         // Production builds cannot link the developer-only source-name resolver.
-        if ( sub.name != "zombie_phobos" && sub.name != %"zombie_phobos" && sub.name != #"zombie_phobos" )
+        expected_hash = profile.kind == "zrex" ? %"zombie_phobos" : %"zombie_viper";
+        expected_script_hash = profile.kind == "zrex" ? #"zombie_phobos" : #"zombie_viper";
+        if ( sub.name != profile.subclass && sub.name != expected_hash && sub.name != expected_script_hash )
             continue;
         settings = getscriptbundle( "zombieaisettings:" + ai.zombieaisetting );
         if ( !isdefined( settings ) || !isdefined( settings.var_394d3c5e6fa40c50 ) )
@@ -295,7 +353,7 @@ function owner_zrex_receiver_type()
         config = getscriptbundle( settings.var_394d3c5e6fa40c50 );
         // A leg reference is metadata, not proof of live scriptable registration.
         // Verify two native leg instances on our returned actor before accepting it.
-        if ( isdefined( config ) && isdefined( config.legscriptable ) )
+        if ( isdefined( config ) && ( profile.kind == "uber_klaus" || isdefined( config.legscriptable ) ) )
             return type;
     }
     return undefined;
@@ -318,6 +376,7 @@ function owner_zrex_map_uses_boss( ally )
 
 function owner_zrex_disable_mount( actor )
 {
+    if ( !isdefined( actor.owner_zrex_ticket ) || actor.owner_zrex_ticket.profile.kind != "zrex" ) return;
     trigger = actor.phobos_trigger_origin;
     if ( isdefined( trigger ) && trigger.phobos_owner == actor )
         trigger setusableenabled( 0 );
@@ -333,7 +392,7 @@ function owner_zrex_wait_for_turn( ticket )
         if ( istrue( ticket.closed ) ) return ticket.reason ?? "cleanup already started";
         if ( !isdefined( owner ) || !isalive( owner ) ) return "owner unavailable";
         if ( !isdefined( actor ) || !isalive( actor ) ) return "actor unavailable";
-        if ( owner_zrex_map_uses_boss( actor ) ) return "authentic encounter reserved";
+        if ( ticket.profile.kind == "zrex" && owner_zrex_map_uses_boss( actor ) ) return "authentic encounter reserved";
         owner_zrex_disable_mount( actor );
         if ( actor.team == owner.team && actor utility::ent_flag( "turned" ) )
         {
@@ -352,6 +411,7 @@ function owner_zrex_wait_for_turn( ticket )
 // Installed Scarab CRC 990e4908 / worker 5ca180ef matches reference lines 65-90.
 function owner_zrex_wait_for_parts( ticket )
 {
+    if ( ticket.profile.kind != "zrex" ) return "";
     while ( gettime() < ticket.setup_watchdog )
     {
         if ( istrue( ticket.closed ) ) return ticket.reason ?? "cleanup already started";
@@ -372,7 +432,41 @@ function owner_zrex_wait_for_parts( ticket )
     return "native Z-Rex legs did not initialize";
 }
 
-function owner_zrex_find_spot()
+function owner_zrex_wait_for_klaus( ticket )
+{
+    // Viper:92-107 marks native init before the async scriptable reveal; markers alone
+    // are insufficient. Reveal:136-164 sets base_on, waits 1.2s, then clears its state.
+    first_ready = undefined;
+    while ( gettime() < ticket.setup_watchdog )
+    {
+        actor = ticket.actor;
+        if ( istrue( ticket.closed ) ) return ticket.reason ?? "cleanup already started";
+        if ( !isdefined( ticket.owner ) || !isalive( ticket.owner ) ) return "owner unavailable";
+        if ( !isdefined( actor ) || !isalive( actor ) ) return "actor unavailable";
+        if ( actor getentitynumber() != ticket.actor_id || actor.owner_zrex_ticket != ticket )
+            return "actor ownership changed";
+        actor.var_c3746c711044489d = 1;
+        if ( istrue( actor.var_5a9c952260ab1cf ) && istrue( actor.var_a13bed1ac47e1b2c )
+            && utility::flag( "scriptables_ready" ) && actor isscriptable()
+            && actor getscriptablehaspart( "brainrot" ) && actor getscriptablehaspart( "base" )
+            && actor getscriptablehaspart( "spawn_reveal" ) )
+        {
+            if ( !isdefined( first_ready ) ) first_ready = gettime();
+            if ( gettime() - first_ready >= 1300 && actor getscriptablepartstate( "base" ) == "base_on"
+                && actor getscriptablepartstate( "spawn_reveal" ) == "off"
+                && !( actor getaiblackboarddynamic( "in_spawn_reveal" ) > 0 ) )
+            {
+                ticket.native_init_ready = 1;
+                level thread owner_zrex_evidence( ticket, "native_ready", "Viper init and scriptable reveal complete" );
+                return "";
+            }
+        }
+        waitframe();
+    }
+    return "native Uber Klaus initialization did not finish";
+}
+
+function owner_zrex_find_spot( profile )
 {
     if ( !isnavmeshloaded() )
         return undefined;
@@ -380,18 +474,18 @@ function owner_zrex_find_spot()
     for ( i = 0; i < 8; i++ )
     {
         direction = anglestoforward( ( 0, self.angles[1] + 45 * i, 0 ) );
-        guess = self.origin + direction * 448;
+        guess = self.origin + direction * profile.spawn_range;
         ground = getclosestpointonnavmesh( guess, self );
         if ( !isdefined( ground ) || distancesquared( ground, guess ) > 96 * 96 )
             continue;
-        if ( !capsuletracepassed( ground + ( 0, 0, 4 ), 128, 320, undefined, 0, 0 ) )
+        if ( !capsuletracepassed( ground + ( 0, 0, 4 ), profile.radius, profile.height, undefined, 0, 0 ) )
             continue;
-        if ( getaiarrayinradius( ground, 176 ).size )
+        if ( getaiarrayinradius( ground, profile.ai_clearance ).size )
             continue;
         occupied = 0;
         foreach ( player in level.players )
         {
-            if ( isdefined( player ) && distancesquared( player.origin, ground ) < 192 * 192 )
+            if ( isdefined( player ) && distancesquared( player.origin, ground ) < profile.player_clearance * profile.player_clearance )
                 occupied = 1;
         }
         if ( !occupied )
@@ -438,7 +532,7 @@ function owner_zrex_puke_add( params )
                 if ( isdefined( ticket ) ) break;
             }
         }
-    if ( !isdefined( ticket ) ) return; // no inferred attribution by team, position or appearance
+    if ( !isdefined( ticket ) || ticket.profile.kind != "zrex" ) return; // no inferred attribution by team, position or appearance
     child.owner_zrex_ticket = ticket;
     child.ignore_enemy_count = 1;
     child.b_cleanup_no_respawn = 1;
@@ -493,6 +587,11 @@ function owner_zrex_hit( params )
 
 function owner_zrex_evidence( ticket, stage, why )
 {
+    // Native saves truncate filenames at 32 bytes. A <=19-byte per-summon key plus
+    // a bounded numeric stage is unique within this match and never loses its suffix.
+    ticket.evidence_sequence = ( ticket.evidence_sequence ?? 0 ) + 1;
+    if ( ticket.evidence_sequence > 999999 ) return;
+    file = ticket.key + "_" + ticket.evidence_sequence;
     actor = ticket.actor;
     owner = ticket.owner;
     exists = isdefined( actor );
@@ -519,6 +618,12 @@ function owner_zrex_evidence( ticket, stage, why )
         }
     }
     nengine_store_set( "owner_zrex_v3", "stage", stage );
+    nengine_store_set( "owner_zrex_v3", "build", "ally1" );
+    nengine_store_set( "owner_zrex_v3", "kind", ticket.profile.kind );
+    nengine_store_set( "owner_zrex_v3", "map", level.mapname ?? "pending" );
+    nengine_store_set( "owner_zrex_v3", "summon", ticket.key );
+    nengine_store_set( "owner_zrex_v3", "stage_index", ticket.evidence_sequence );
+    nengine_store_set( "owner_zrex_v3", "deadline", ticket.deadline ?? -1 );
     nengine_store_set( "owner_zrex_v3", "detail", why );
     nengine_store_set( "owner_zrex_v3", "time_ms", gettime() );
     nengine_store_set( "owner_zrex_v3", "owner_id", ticket.owner_id );
@@ -534,28 +639,31 @@ function owner_zrex_evidence( ticket, stage, why )
     nengine_store_set( "owner_zrex_v3", "path_left", path_left );
     nengine_store_set( "owner_zrex_v3", "owner_distance", owner_dist );
     nengine_store_set( "owner_zrex_v3", "native_legs_ready", ticket.native_legs_ready ?? 0 );
+    nengine_store_set( "owner_zrex_v3", "native_init_ready", ticket.native_init_ready ?? 0 );
     nengine_store_set( "owner_zrex_v3", "creature_nav_at_spawn", ticket.nav_at_spawn ?? -1 );
     nengine_store_set( "owner_zrex_v3", "creature_exit_found", ticket.walk_exit ?? -1 );
-    nengine_store_save( "owner_zrex_v3", ticket.key + "_" + stage );
+    nengine_store_save( "owner_zrex_v3", file );
 }
 
 function owner_zrex_reachable( actor, position )
 {
+    profile = actor.owner_zrex_ticket.profile;
     point = getclosestpointonnavmesh( position, actor, 1, 1, 1 );
-    if ( !isdefined( point ) || distancesquared( point, position ) > 192 * 192 )
+    if ( !isdefined( point ) || distancesquared( point, position ) > profile.nav_snap * profile.nav_snap )
         return undefined;
-    if ( distancesquared( actor.origin, point ) < 96 * 96 )
+    if ( distancesquared( actor.origin, point ) < profile.nav_close * profile.nav_close )
         return point;
     path = actor findpath( actor.origin, point );
     // BO7 AI findpath returns an indexed list of positions. A nonempty partial
     // path ending at a wall does not certify a reachable creature goal.
-    if ( isarray( path ) && path.size > 0 && distancesquared( path[path.size - 1], point ) <= 96 * 96 )
+    if ( isarray( path ) && path.size > 0 && distancesquared( path[path.size - 1], point ) <= profile.nav_close * profile.nav_close )
         return point;
     return undefined;
 }
 
 function owner_zrex_creature_clearance( ticket )
 {
+    profile = ticket.profile;
     for ( pass = 0; pass < 3; pass++ )
     {
         actor = ticket.actor;
@@ -568,8 +676,8 @@ function owner_zrex_creature_clearance( ticket )
             for ( j = 0; j < 4; j++ )
             {
                 dir = anglestoforward( ( 0, actor.angles[1] + 90*j, 0 ) );
-                exit_point = owner_zrex_reachable( actor, actor.origin + dir * 330 );
-                if ( isdefined( exit_point ) && distancesquared( exit_point, actor.origin ) >= 192 * 192 )
+                exit_point = owner_zrex_reachable( actor, actor.origin + dir * profile.exit_distance );
+                if ( isdefined( exit_point ) && distancesquared( exit_point, actor.origin ) >= profile.exit_minimum * profile.exit_minimum )
                 {
                     ticket.walk_exit = 1;
                     level thread owner_zrex_evidence( ticket, "creature_nav", "own nav origin and reachable exit" );
@@ -578,7 +686,7 @@ function owner_zrex_creature_clearance( ticket )
             }
         if ( pass < 2 ) wait 0.2;
     }
-    level thread owner_zrex_evidence( ticket, "creature_nav", "no verified full-size exit" );
+    level thread owner_zrex_evidence( ticket, "creature_nav", "no verified creature exit" );
     return false;
 }
 
@@ -624,8 +732,8 @@ function owner_zrex_contact( ticket, target )
     index = ticket.standoff_index ?? 0;
     ticket.standoff_index = ( index + 1 ) % angles.size;
     dir = anglestoforward( ( 0, actor.angles[1] + angles[index], 0 ) );
-    point = owner_zrex_reachable( actor, target.origin + dir * 310 );
-    if ( !isdefined( point ) || distancesquared( point, actor.origin ) < 160 * 160 )
+    point = owner_zrex_reachable( actor, target.origin + dir * ticket.profile.standoff );
+    if ( !isdefined( point ) || distancesquared( point, actor.origin ) < ticket.profile.standoff_minimum * ticket.profile.standoff_minimum )
         return ""; // give a different hostile a turn in this same tick
     actor zombie_utils::update_bt_goal( point );
     ticket.standoff_until = now + 2500;
@@ -663,7 +771,7 @@ function owner_zrex_steer( ticket )
             if ( probes >= 3 ) break;
             probes++;
             delta = actor.origin - target.origin;
-            near = length( delta ) <= 240;
+            near = length( delta ) <= ticket.profile.contact_range;
             if ( near )
             {
                 action = owner_zrex_contact( ticket, target );
@@ -671,7 +779,7 @@ function owner_zrex_steer( ticket )
                 owner_zrex_set_focus( ticket, target );
                 return action;
             }
-            goal = owner_zrex_reachable( actor, target.origin + vectornormalize( delta ) * 160 );
+            goal = owner_zrex_reachable( actor, target.origin + vectornormalize( delta ) * ticket.profile.target_gap );
             if ( !isdefined( goal ) ) continue;
             ticket.contact_target = undefined;
             owner_zrex_set_focus( ticket, target );
@@ -680,9 +788,9 @@ function owner_zrex_steer( ticket )
         }
     }
     owner_zrex_set_focus( ticket, undefined );
-    if ( distance_to_owner <= 400 )
+    if ( distance_to_owner <= ticket.profile.owner_stop )
         return "staying near owner; no reachable hostile";
-    goal = owner_zrex_reachable( actor, owner.origin + vectornormalize( actor.origin - owner.origin ) * 240 );
+    goal = owner_zrex_reachable( actor, owner.origin + vectornormalize( actor.origin - owner.origin ) * ticket.profile.owner_gap );
     if ( !isdefined( goal ) ) return "no creature-nav path to owner";
     actor zombie_utils::update_bt_goal( goal );
     return "reachable owner-follow goal issued";
@@ -714,12 +822,13 @@ function owner_zrex_watch( ticket )
             owner_zrex_retire( ticket, "actor died" );
             return;
         }
-        if ( owner_zrex_map_uses_boss( actor ) )
+        if ( ticket.profile.kind == "zrex" && owner_zrex_map_uses_boss( actor ) )
         {
             owner_zrex_retire( ticket, "encounter reserved" );
             return;
         }
         owner_zrex_disable_mount( actor );
+        if ( ticket.profile.kind == "uber_klaus" ) actor.var_c3746c711044489d = 1;
         if ( !istrue( ticket.ready ) )
         {
             if ( gettime() >= ticket.setup_watchdog )
@@ -776,6 +885,8 @@ function owner_zrex_retire( ticket, reason )
         return;
     ticket.closed = 1;
     ticket.reason = reason;
+    if ( ticket.profile.kind == "uber_klaus" && isdefined( ticket.actor ) && ticket.actor.owner_zrex_ticket == ticket )
+        ticket.actor.var_c3746c711044489d = 1;
     // This level-owned verifier runs separately. If an auxiliary cleanup call faults,
     // it can still inspect the exact handle; another summon cannot take this reservation.
     level thread owner_zrex_verify_retire( ticket );
@@ -816,9 +927,14 @@ function owner_zrex_verify_retire( ticket )
         // may fault individually but cannot prevent the raw worker from running.
         level thread owner_zrex_raw_delete( ticket, attempt );
         level thread owner_zrex_hide_owned_bar( actor );
-        level thread owner_zrex_detach( actor );
-        level thread owner_zrex_remove_callbacks( level, "zombie_toxic_gas_spawned", actor );
-        level thread owner_zrex_dispose_parts( ticket );
+        if ( ticket.profile.kind == "zrex" )
+        {
+            level thread owner_zrex_detach( actor );
+            level thread owner_zrex_remove_callbacks( level, "zombie_toxic_gas_spawned", actor );
+            level thread owner_zrex_dispose_parts( ticket );
+        }
+        else
+            level thread owner_zrex_klaus_parts( ticket );
         level thread owner_zrex_evidence( ticket, "retire_attempt" + attempt, "raw deletion scheduled" );
         wait 0.25;
     }
@@ -856,6 +972,7 @@ function owner_zrex_raw_delete( ticket, attempt )
 
 function owner_zrex_dispose_parts( ticket )
 {
+    if ( ticket.profile.kind != "zrex" ) return;
     actor = ticket.actor;
     if ( isdefined( actor ) && actor.owner_zrex_ticket == ticket && actor getentitynumber() == ticket.actor_id )
     {
@@ -880,6 +997,7 @@ function owner_zrex_dispose_parts( ticket )
 
 function owner_zrex_detach( actor )
 {
+    if ( !isdefined( actor.owner_zrex_ticket ) || actor.owner_zrex_ticket.profile.kind != "zrex" ) return;
     owner_zrex_disable_mount( actor );
     // Mirror collision:312-349 using common APIs. The mod is loaded on other
     // maps, so avoid hard-linking the Phobos-only private rider module there.
@@ -920,6 +1038,19 @@ function owner_zrex_detach( actor )
         back utility::ent_flag_clear( "attached_on_back" );
         break;
     }
+}
+
+function owner_zrex_klaus_parts( ticket )
+{
+    actor = ticket.actor;
+    if ( ticket.profile.kind != "uber_klaus" || !isdefined( actor )
+        || actor.owner_zrex_ticket != ticket || actor getentitynumber() != ticket.actor_id ) return;
+    actor.var_c3746c711044489d = 1;
+    // Native Viper shield is an actor-owned scriptable part, not a shared map entity.
+    // Raw deletion is already scheduled independently if this best-effort reset faults.
+    actor.tesla_coil_shield_enabled = 0;
+    if ( istrue( ticket.native_init_ready ) && actor isscriptable() && actor getscriptablehaspart( "tesla_coil_shield" ) )
+        actor utility::function_32b24db3127bff40( "tesla_coil_shield", "off" );
 }
 
 function owner_zrex_remove_callbacks( host, event, actor )

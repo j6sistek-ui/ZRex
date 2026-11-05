@@ -80,7 +80,7 @@ for i = 2, 4 do
     check(SUPER.getbundlebyindex(i).name == view.name and LOOT.getscriptbundleforref("fu",ref).name == view.name, ref .. " ref/index/loot presentation agrees")
     check(PROGRESSION.IsUnlocked(1, stock.lootID) and not Restrictions.IsSuperRestricted(ref), ref .. " allowed by stock ref and loot ID")
 end
-check(Engine.Localize("owner_zrex_field_upgrade_name") == "Z-Rex Ally (POC)" and Engine.Localize("owner_zrex_field_upgrade_description"):find("240 seconds",1,true), "unique text describes timed ally")
+check(Engine.Localize("owner_zrex_field_upgrade_name") == "Ally Summon (Prototype)" and Engine.Localize("owner_zrex_field_upgrade_description"):find("240 seconds",1,true) and Engine.Localize("owner_zrex_field_upgrade_description"):find("Uber Klaus",1,true), "unique text identifies the interim timed ally")
 check(Engine.Localize("stock_dark_flare") == "stock:stock_dark_flare", "stock Dark Flare localization key untouched")
 check(SUPER.GetBundleByRef(refs[1]) == bundles[refs[1]] and SUPER.GetBundleByRef(refs[6]) == bundles[refs[6]], "Tesla Storm and Energy Mine unchanged")
 check(SUPER.GetBundleByRef(refs[5]).name == "VEHICLES/BLOOD_BURNER", "Healing Aura still routes to Blood Burner's bundle")

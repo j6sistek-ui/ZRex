@@ -1,7 +1,7 @@
 {
-    "name": "Z-Rex Ally (POC)",
+    "name": "Ally Summon (Prototype)",
     "author": "Local prototype",
-    "version": "0.2.1-poc",
+    "version": "0.3.0-poc",
     "type": "script",
-    "description": "Dark Flare summons one full-size allied Z-Rex for 240 seconds. Checks each map's available assets; no quest prerequisite. Movement and cross-map runtime validation pending."
+    "description": "Dark Flare summons one timed ally, defaulting to Uber Klaus to validate the shared controller. Uses only available map assets; no automatic fallback. Z-Rex remains experimental and gameplay validation is pending."
 }
