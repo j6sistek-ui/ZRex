@@ -18,11 +18,13 @@ This is the default when the setting is absent. The original experimental actor 
 2. Observe it damaging enemies while the player remains unharmed by its attacks. A team flag, green outline or damage callback alone is not proof of health loss or protection.
 3. Move away and around obstacles. Confirm pursuit/follow behavior instead of stationary attacks or constant path retries.
 4. Attempt another activation while the first ally exists. Confirm no duplicate is created.
-5. Observe the ally disappear by its 240-second deadline measured from creation, or earlier if it dies, its owner dies/disconnects, or setup fails. Confirm another summon becomes possible only after cleanup completes.
+5. Observe the ally disappear by its 240-second deadline measured from creation, or earlier if it dies, its owner dies/disconnects, or setup fails. In the same match, recharge and activate again. Confirm a second ally appears only after the first cleanup completes. Repeat once after the ally dies early. A returned despawn call or a hidden body alone is not a successful cleanup result.
 6. For Klaus, check that destruction does not leave an exploding mini core or owned accessories. Confirm normal round enemies, round completion, quest actors and the separate Healing Aura bike remain functional.
 7. Repeat on each target map. Shared package declarations and a successful test on one map do not establish every-map runtime compatibility.
 
 Use the mod's private local receipts to distinguish creation, initialization, conversion, targeting, damage, expiry and confirmed deletion. A script fault or missing receipt must remain an unresolved result. Compilation and menu checks cannot replace the steps above.
+
+The first owner test reached a live Klaus in Ashes, but its factory rejected setup immediately and generic deletion left its handle alive. Version 0.3.1 targets those failures. The repaired acceptance, cleanup and second activation remain unverified until a fresh test; the earlier visible spawn is not acceptance of the full controller.
 
 ## Research boundaries
 
