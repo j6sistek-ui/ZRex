@@ -1,4 +1,4 @@
-# Resident ally validation
+# ALLY -FieldUpgrade validation
 
 The objective is to exercise the shared four-minute summon controller with Uber Klaus before depending on Z-Rex's unresolved cross-map resources. The game is not started by installation, and no actor spawns until Dark Flare is activated.
 
@@ -10,7 +10,7 @@ In the offline console before starting a fresh match:
 set owner_ally_profile uber_klaus
 ```
 
-This is the default when the setting is absent. The original experimental actor is selected explicitly with `set owner_ally_profile zrex`. There is no automatic fallback between them. An unknown value or unavailable actor rejects the activation. The menu remains **Ally Summon (Prototype)** in the Dark Flare slot and supports its two original augment aliases.
+This is the default when the setting is absent. The original experimental actor is selected explicitly with `set owner_ally_profile zrex`. There is no automatic fallback between them. An unknown value or unavailable actor rejects the activation. The menu displays **ALLY -FieldUpgrade** in the Dark Flare slot and supports its two original augment aliases. The package remains in `owner_zrex_poc`; the display rename does not change these profile commands.
 
 ## What the next gameplay test must demonstrate
 
@@ -22,9 +22,13 @@ This is the default when the setting is absent. The original experimental actor 
 6. For Klaus, check that destruction does not leave an exploding mini core or owned accessories. Confirm normal round enemies, round completion, quest actors and the separate Healing Aura bike remain functional.
 7. Repeat on each target map. Shared package declarations and a successful test on one map do not establish every-map runtime compatibility.
 
-Use the mod's private local receipts to distinguish creation, initialization, conversion, targeting, damage, expiry and confirmed deletion. A script fault or missing receipt must remain an unresolved result. Compilation and menu checks cannot replace the steps above.
+Visual retest: after readiness, check for the green owner-screen `ALLY: Uber Klaus` label and its removal on retirement. Aim at the ally to check that its native target name/health bar is hidden while ordinary enemies remain unchanged. A green overhead name is not implemented; this candidate has not been visually verified.
 
-The first owner test reached a live Klaus in Ashes, but its factory rejected setup immediately and generic deletion left its handle alive. Version 0.3.1 targets those failures. The repaired acceptance, cleanup and second activation remain unverified until a fresh test; the earlier visible spawn is not acceptance of the full controller.
+Use the mod's private local receipts to distinguish creation, initialization, conversion, targeting, damage, expiry and confirmed retirement. For candidate 0.3.2-poc, confirm build `ally3` and the `native_ready`, `converted`, `accepted` and `retire_confirmed` stages. A `readiness_timeout` receipt records each initialization marker, shared readiness, scriptable/part availability, explicit string states and reveal activity. A script fault or missing receipt remains unresolved. Compilation and menu checks cannot replace the steps above.
+
+The first owner test reached a live Klaus in Ashes, but its factory rejected setup immediately and generic deletion left its handle alive. The version 0.3.1 Totenreich retest passed every factory check; the owner saw Klaus spawn and fight, and a hostile-damage callback was recorded. Setup still timed out after about 15 seconds without recording readiness, conversion or acceptance. The despawn helper returned with a dead, defined handle and matching native slot, and the next summon stayed locked. This is partial evidence, not full-controller acceptance.
+
+Candidate **0.3.2-poc is runtime unverified**. It requests both readiness states with `getscriptablepartstate(..., 1)`, following the stock string-state checker; the previous failed predicate was not logged and remains unconfirmed. Cleanup still accepts a missing original handle or empty native slot. Its additional terminal proof requires an actor originally observed as an agent, an exact-identity despawn request and return, then the same dead non-agent through both retained and fresh lookups on separate frames. Check the receipt's `removal_proof`; death or a helper return alone is insufficient. Whether the new terminal proof occurs, successful conversion and the same-match second activation all remain test gates. Keep the source PR draft and unmerged.
 
 ## Research boundaries
 

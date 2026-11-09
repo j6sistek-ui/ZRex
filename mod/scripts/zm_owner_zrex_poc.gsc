@@ -26,7 +26,7 @@ function owner_zrex_mark( file, phase )
 {
     map = level.mapname ?? "pending";
     logstring( "OWNER_ZREX " + phase + " map=" + map );
-    nengine_store_set( "owner_zrex_poc", "build", "ally2" );
+    nengine_store_set( "owner_zrex_poc", "build", "ally3" );
     nengine_store_set( "owner_zrex_poc", "map", map );
     nengine_store_set( "owner_zrex_poc", "time_ms", gettime() );
     nengine_store_set( "owner_zrex_poc", "phase", phase );
@@ -170,7 +170,7 @@ function owner_zrex_begin()
     if ( !isdefined( profile ) )
         return self owner_zrex_block( "Unknown ally profile. Use uber_klaus or zrex." );
     if ( !isdefined( level.mapname ) || !( utility::iszm() || isstartstr( "" + level.mapname, "zm_" ) ) )
-        return self owner_zrex_block( "Ally Summon requires a Zombies match." );
+        return self owner_zrex_block( "ALLY -FieldUpgrade requires a Zombies match." );
     if ( !isalive( self ) || !isdefined( self.team ) )
         return self owner_zrex_block( "Spawn before calling your ally." );
     owner_id = self getentitynumber();
@@ -210,7 +210,7 @@ function owner_zrex_begin()
     }
     // Bound the short receipt prefix rather than relying on native 32-byte truncation.
     if ( ( level.owner_zrex_sequence ?? 0 ) >= 999999 )
-        return self owner_zrex_block( "Ally summon receipt limit reached for this match." );
+        return self owner_zrex_block( "ALLY -FieldUpgrade receipt limit reached for this match." );
     ticket = spawnstruct();
     ticket.profile = profile;
     ticket.owner = self;
@@ -275,6 +275,7 @@ function owner_zrex_begin()
     actor setsafeguardent( self );
     actor setsafeguardrange( 512 );
     ticket.ready = 1;
+    level thread owner_zrex_ally_label( ticket );
     level notify( #"highvis_reload_outline", self.team, [actor] );
     level thread owner_zrex_evidence( ticket, "accepted", "live turned actor on owner team" );
     logstring( "OWNER_ZREX spawned owner=" + self getentitynumber() + " actor=" + actor getentitynumber() );
@@ -312,6 +313,7 @@ function owner_zrex_factory( ticket, type, spot, angles, team )
     // Set it before any yielding startup/watch/turn work, only on our returned actor.
     if ( ticket.profile.kind == "uber_klaus" ) actor.var_c3746c711044489d = 1;
     ticket.actor = actor;
+    ticket.created_as_agent = isagent( actor );
     actor.owner_zrex_ticket = ticket;
     ticket.actor_id = actor getentitynumber();
     ticket.deadline = gettime() + 240000;
@@ -321,6 +323,9 @@ function owner_zrex_factory( ticket, type, spot, angles, team )
     level thread owner_zrex_watch( ticket );
     level thread owner_zrex_wait_end( ticket );
     ticket.factory_returned = 1;
+    // Presentation is isolated after cleanup workers and the factory return are
+    // established, so a UI callback cannot strand a live native actor.
+    level thread owner_zrex_nameplate( ticket );
     // Record each predicate so a rejected live handle is never reported as an
     // unexplained timeout. The owner number is deliberately not involved here.
     ticket.factory_in_time = gettime() < ticket.factory_until;
@@ -470,23 +475,34 @@ function owner_zrex_wait_for_klaus( ticket )
         if ( actor getentitynumber() != ticket.actor_id || actor.owner_zrex_ticket != ticket )
             return "actor ownership changed";
         actor.var_c3746c711044489d = 1;
-        if ( istrue( actor.var_5a9c952260ab1cf ) && istrue( actor.var_a13bed1ac47e1b2c )
-            && utility::flag( "scriptables_ready" ) && actor isscriptable()
+        ticket.klaus_init_marker = istrue( actor.var_5a9c952260ab1cf );
+        ticket.klaus_second_marker = istrue( actor.var_a13bed1ac47e1b2c );
+        ticket.klaus_scriptables_ready = utility::flag( "scriptables_ready" );
+        ticket.klaus_scriptable = actor isscriptable();
+        ticket.klaus_parts_ready = ticket.klaus_scriptable
             && actor getscriptablehaspart( "brainrot" ) && actor getscriptablehaspart( "base" )
-            && actor getscriptablehaspart( "spawn_reveal" ) )
+            && actor getscriptablehaspart( "spawn_reveal" );
+        if ( ticket.klaus_init_marker && ticket.klaus_second_marker
+            && ticket.klaus_scriptables_ready && ticket.klaus_parts_ready )
         {
             if ( !isdefined( first_ready ) ) first_ready = gettime();
-            if ( gettime() - first_ready >= 1300 && actor getscriptablepartstate( "base" ) == "base_on"
-                && actor getscriptablepartstate( "spawn_reveal" ) == "off"
-                && !( actor getaiblackboarddynamic( "in_spawn_reveal" ) > 0 ) )
+            // Request string states, as the stock utility state checker does.
+            // The default getter is also compared against hash literals in native scripts.
+            ticket.klaus_base_state = actor getscriptablepartstate( "base", 1 );
+            ticket.klaus_reveal_state = actor getscriptablepartstate( "spawn_reveal", 1 );
+            ticket.klaus_reveal_active = actor getaiblackboarddynamic( "in_spawn_reveal" ) > 0;
+            if ( gettime() - first_ready >= 1300 && ticket.klaus_base_state == "base_on"
+                && ticket.klaus_reveal_state == "off" && !ticket.klaus_reveal_active )
             {
                 ticket.native_init_ready = 1;
                 level thread owner_zrex_evidence( ticket, "native_ready", "Viper init and scriptable reveal complete" );
                 return "";
             }
         }
+        else first_ready = undefined;
         waitframe();
     }
+    level thread owner_zrex_evidence( ticket, "readiness_timeout", "individual startup checks recorded" );
     return "native Uber Klaus initialization did not finish";
 }
 
@@ -642,7 +658,7 @@ function owner_zrex_evidence( ticket, stage, why )
         }
     }
     nengine_store_set( "owner_zrex_v3", "stage", stage );
-    nengine_store_set( "owner_zrex_v3", "build", "ally2" );
+    nengine_store_set( "owner_zrex_v3", "build", "ally3" );
     nengine_store_set( "owner_zrex_v3", "kind", ticket.profile.kind );
     nengine_store_set( "owner_zrex_v3", "map", level.mapname ?? "pending" );
     nengine_store_set( "owner_zrex_v3", "summon", ticket.key );
@@ -653,6 +669,24 @@ function owner_zrex_evidence( ticket, stage, why )
     nengine_store_set( "owner_zrex_v3", "owner_id", isint( ticket.owner_id ) ? ticket.owner_id : -1 );
     nengine_store_set( "owner_zrex_v3", "owner_id_defined", isdefined( ticket.owner_id ) );
     nengine_store_set( "owner_zrex_v3", "owner_id_type", isint( ticket.owner_id ) ? "int" : ( isdefined( ticket.owner_id ) ? "other" : "undefined" ) );
+    nengine_store_set( "owner_zrex_v3", "created_as_agent", istrue( ticket.created_as_agent ) );
+    nengine_store_set( "owner_zrex_v3", "native_despawn_requested", istrue( ticket.native_despawn_requested ) );
+    nengine_store_set( "owner_zrex_v3", "native_despawn_returned", istrue( ticket.native_despawn_returned ) );
+    nengine_store_set( "owner_zrex_v3", "actor_isagent", exists && isagent( actor ) );
+    current_actor_id = exists ? actor getentitynumber() : undefined;
+    nengine_store_set( "owner_zrex_v3", "actor_current_id", current_actor_id ?? -1 );
+    nengine_store_set( "owner_zrex_v3", "actor_current_id_defined", isdefined( current_actor_id ) );
+    nengine_store_set( "owner_zrex_v3", "actor_marker_defined", exists && isdefined( actor.owner_zrex_ticket ) );
+    nengine_store_set( "owner_zrex_v3", "actor_marker_matches", exists && actor.owner_zrex_ticket == ticket );
+    nengine_store_set( "owner_zrex_v3", "removal_proof", ticket.removal_proof ?? "not confirmed" );
+    nengine_store_set( "owner_zrex_v3", "klaus_init_marker", ticket.klaus_init_marker ?? -1 );
+    nengine_store_set( "owner_zrex_v3", "klaus_second_marker", ticket.klaus_second_marker ?? -1 );
+    nengine_store_set( "owner_zrex_v3", "klaus_scriptables_ready", ticket.klaus_scriptables_ready ?? -1 );
+    nengine_store_set( "owner_zrex_v3", "klaus_scriptable", ticket.klaus_scriptable ?? -1 );
+    nengine_store_set( "owner_zrex_v3", "klaus_parts_ready", ticket.klaus_parts_ready ?? -1 );
+    nengine_store_set( "owner_zrex_v3", "klaus_base_state", ticket.klaus_base_state ?? "unread" );
+    nengine_store_set( "owner_zrex_v3", "klaus_reveal_state", ticket.klaus_reveal_state ?? "unread" );
+    nengine_store_set( "owner_zrex_v3", "klaus_reveal_active", ticket.klaus_reveal_active ?? -1 );
     nengine_store_set( "owner_zrex_v3", "factory_status", ticket.factory_status ?? "pending" );
     nengine_store_set( "owner_zrex_v3", "factory_until", ticket.factory_until ?? -1 );
     nengine_store_set( "owner_zrex_v3", "factory_returned", istrue( ticket.factory_returned ) );
@@ -663,9 +697,12 @@ function owner_zrex_evidence( ticket, stage, why )
     nengine_store_set( "owner_zrex_v3", "factory_owner_marker", ticket.factory_owner_marker ?? -1 );
     nengine_store_set( "owner_zrex_v3", "factory_registry_match", ticket.factory_registry_match ?? -1 );
     nengine_store_set( "owner_zrex_v3", "released", istrue( ticket.released ) );
+    nengine_store_set( "owner_zrex_v3", "ally_label_defined", isdefined( ticket.ally_label ) );
     fresh_slot = isint( ticket.actor_id ) ? getentbynum( ticket.actor_id ) : undefined;
     nengine_store_set( "owner_zrex_v3", "fresh_slot_defined", isdefined( fresh_slot ) );
     nengine_store_set( "owner_zrex_v3", "fresh_slot_matches", isdefined( fresh_slot ) && fresh_slot == actor );
+    nengine_store_set( "owner_zrex_v3", "fresh_slot_isagent", isdefined( fresh_slot ) && isagent( fresh_slot ) );
+    nengine_store_set( "owner_zrex_v3", "fresh_slot_alive", isdefined( fresh_slot ) && isalive( fresh_slot ) );
     nengine_store_set( "owner_zrex_v3", "actor_id", ticket.actor_id ?? -1 );
     nengine_store_set( "owner_zrex_v3", "handle_defined", exists );
     nengine_store_set( "owner_zrex_v3", "alive", live );
@@ -892,7 +929,6 @@ function owner_zrex_watch( ticket )
         if ( gettime() >= ( ticket.next_steer ?? 0 ) )
         {
             ticket.next_steer = gettime() + 1000;
-            owner_zrex_hide_owned_bar( actor );
             action = owner_zrex_steer( ticket );
             elapsed = gettime() - ( ticket.deadline - 240000 );
             sample = elapsed < 3000 ? 0 : ( elapsed < 15000 ? 1 : ( elapsed < 60000 ? 2 : 3 ) );
@@ -929,7 +965,54 @@ function owner_zrex_retire( ticket, reason )
     // This level-owned verifier runs separately. If an auxiliary cleanup call faults,
     // it can still inspect the exact handle; another summon cannot take this reservation.
     level thread owner_zrex_verify_retire( ticket );
+    level thread owner_zrex_clear_label( ticket );
     level thread owner_zrex_evidence( ticket, "retire_start", reason );
+}
+
+function owner_zrex_ally_label( ticket )
+{
+    // A green owner HUD label, not a claim about native overhead-name colors.
+    // UI runs separately so a presentation fault cannot block the controller.
+    if ( istrue( ticket.closed ) || !istrue( ticket.ready ) || !isdefined( ticket.owner ) ) return;
+    label = newclienthudelem( ticket.owner );
+    ticket.ally_label = label;
+    label.font = "default";
+    label.fontscale = 1;
+    label.alignx = "center";
+    label.aligny = "top";
+    label.horzalign = "center";
+    label.vertalign = "top";
+    label.x = 0;
+    label.y = 80;
+    label.color = ( 0.2, 1, 0.3 );
+    label.alpha = 1;
+    label.archived = 0;
+    label settext( "ALLY: " + ticket.profile.label );
+    while ( !istrue( ticket.closed ) && isdefined( ticket.owner ) )
+        wait 0.25;
+    owner_zrex_clear_label( ticket );
+}
+
+function owner_zrex_nameplate( ticket )
+{
+    // Native aim-target UI reads this actor-local value. The override ID is
+    // distinct from spawn_reveal, so native reveal cleanup does not reset it.
+    while ( !istrue( ticket.closed ) )
+    {
+        actor = ticket.actor;
+        if ( !isdefined( actor ) || actor.owner_zrex_ticket != ticket
+            || actor getentitynumber() != ticket.actor_id ) return;
+        actor val::set( "owner_ally", "show_healthbar", 0 );
+        level thread owner_zrex_hide_owned_bar( actor );
+        wait 0.25;
+    }
+}
+
+function owner_zrex_clear_label( ticket )
+{
+    label = ticket.ally_label;
+    ticket.ally_label = undefined;
+    if ( isdefined( label ) ) label destroy();
 }
 
 function owner_zrex_hard_expiry( ticket )
@@ -997,16 +1080,55 @@ function owner_zrex_removed( ticket )
 {
     // Never interpret an outstanding factory call's empty ticket as a free slot.
     if ( !istrue( ticket.factory_returned ) ) return false;
-    if ( !isdefined( ticket.actor ) ) return true;
+    if ( !isdefined( ticket.actor ) )
+    {
+        ticket.removal_proof = "original handle absent";
+        return true;
+    }
     if ( !isint( ticket.actor_id ) ) return false;
     // A stale script reference need not keep the owner locked if the actual entity
     // slot is absent. A different occupied slot is NOT evidence of safe removal.
-    return !isdefined( getentbynum( ticket.actor_id ) );
+    fresh = getentbynum( ticket.actor_id );
+    if ( !isdefined( fresh ) )
+    {
+        ticket.removal_proof = "native slot absent";
+        return true;
+    }
+    // Some native removals retain a defined script reference. A dead body or helper
+    // return alone is insufficient: observe a true agent -> non-agent transition
+    // on the SAME instance after our fenced removal, on two separate game frames.
+    actor = ticket.actor;
+    same_owned_instance = fresh == actor && actor getentitynumber() == ticket.actor_id
+        && actor.owner_zrex_ticket == ticket;
+    terminal = owner_zrex_terminal_transition( ticket.created_as_agent,
+        ticket.native_despawn_requested, ticket.native_despawn_returned, same_owned_instance,
+        isalive( actor ), isagent( actor ), isalive( fresh ), isagent( fresh ) );
+    if ( !terminal )
+    {
+        ticket.nonagent_observed_at = undefined;
+        return false;
+    }
+    if ( !isdefined( ticket.nonagent_observed_at ) )
+    {
+        ticket.nonagent_observed_at = gettime();
+        return false;
+    }
+    if ( gettime() <= ticket.nonagent_observed_at ) return false;
+    ticket.removal_proof = "fenced native removal; same dead non-agent confirmed across frames";
+    return true;
+}
+
+function owner_zrex_terminal_transition( created_agent, requested, returned, same_instance, actor_alive, actor_agent, fresh_alive, fresh_agent )
+{
+    return istrue( created_agent ) && istrue( requested ) && istrue( returned )
+        && istrue( same_instance ) && isdefined( actor_alive ) && isdefined( actor_agent )
+        && isdefined( fresh_alive ) && isdefined( fresh_agent )
+        && !actor_alive && !actor_agent && !fresh_alive && !fresh_agent;
 }
 
 function owner_zrex_release( ticket )
 {
-    // A known-empty native return, invalidated handle or empty native slot is proof.
+    // Native absence or a verified terminal agent transition is required.
     // A deadline, hidden/dead model, or return from despawnagent alone is not.
     if ( !owner_zrex_removed( ticket ) ) return false;
     owner = ticket.owner;
@@ -1028,6 +1150,8 @@ function owner_zrex_native_despawn( ticket, attempt )
     actor = ticket.actor;
     if ( !isdefined( actor ) || actor getentitynumber() != ticket.actor_id || actor.owner_zrex_ticket != ticket )
         return;
+    // A pending second terminal sample must not send the AI helper a non-agent.
+    if ( !isagent( actor ) ) return;
     fresh = getentbynum( ticket.actor_id );
     if ( !isdefined( fresh ) || fresh != actor || fresh.owner_zrex_ticket != ticket )
     {
@@ -1039,7 +1163,9 @@ function owner_zrex_native_despawn( ticket, attempt )
         return;
     }
     if ( ticket.profile.kind == "uber_klaus" ) actor.var_c3746c711044489d = 1;
+    ticket.native_despawn_requested = 1;
     actor agent_utils::despawnagent();
+    ticket.native_despawn_returned = 1;
     if ( attempt >= 0 )
         level thread owner_zrex_evidence( ticket, "despawn_returned" + attempt, "native agent despawn helper returned" );
 }

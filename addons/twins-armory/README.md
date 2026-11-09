@@ -1,6 +1,6 @@
 # Twins Mask Arsenal prototype
 
-Optional package: put `mod/` contents in the offline `cod25/kronos/mods/owner_twins_armory` folder, separately from the Z-Rex package. Close the game before installing and keep a backup. Never use the retail Steam folder.
+Optional package: put `mod/` contents in the offline `cod25/kronos/mods/owner_twins_armory` folder, separately from ALLY -FieldUpgrade. Close the game before installing and keep a backup. Never use the retail Steam folder.
 
 The native Arsenal Ammo Mods category receives an extra **Twins Mask — 500 Salvage** card. Standard offers remain. The server permits the purchase only on Rex Infernus and checks the actual Arsenal context, available mask system, wearer and wallet before completing the native grant and debit. The fixed price is 500. This exposes the mask ability; it does not replace the equipped gun's Ammo Mod.
 

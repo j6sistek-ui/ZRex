@@ -1,10 +1,14 @@
-# Prototype scope
+# ALLY -FieldUpgrade scope
 
 This is newly authored mod source, tests and documentation. Keep stock game files, third-party mod source, saves, captures, downloaded compilers and credentials outside this project. Never target the retail Steam tree.
 
+The exact package and field-upgrade display name is `ALLY -FieldUpgrade`. Preserve the existing `owner_zrex_poc` folder, source filenames, engine identifiers and `owner_ally_profile` values; this display rename does not migrate the installation or change profile selection.
+
 The owner requires full-size Z-Rex on every Zombies map. Version 0.3 explicitly defaults to Uber Klaus as an interim validation profile for the same one-per-player, 240-second controller; `owner_ally_profile=zrex` retains the original actor. Never silently substitute profiles. Test actual native dependencies, initialized AI, creature navigation, allegiance and deletion; there is no fixed Rex-only allowlist. Gate Z-Rex-only legs/mount/encounter handling by profile. Suppress only the owned Klaus's core ejection, without changing map enemies. Cross-map loading and gameplay remain unverified. Both profiles replace Dark Flare and its augment aliases. The separately installed Blood Burner/Healing Aura package is independent. A source or mocked-menu pass is not gameplay acceptance.
 
-The first Klaus runtime failed setup immediately and generic `delete()` left a live agent. Version 0.3.1 uses a unique summon-key reservation and stock agent despawn. Preserve exact owner/ticket fences; never unlock because a timer elapsed, a despawn call returned, or the body disappeared visually. Confirm removal and test a second summon in the same match. Keep diagnostic failures separate from required reservation release.
+The first Klaus runtime failed setup immediately and generic `delete()` left a live agent. Version 0.3.1 uses a unique summon-key reservation and stock agent despawn. Its Totenreich retest passed factory checks and produced a fighting actor, then failed the 15-second readiness gate and retained a dead handle with the owner locked. No full-controller acceptance was recorded.
+
+Candidate 0.3.2-poc (`ally3`) uses `getscriptablepartstate(..., 1)` for explicit string comparisons and records individual readiness facts. Preserve those guards and exact owner/ticket fences. Cleanup accepts the existing absent-handle/empty-slot proof or a previously observed agent becoming the same dead non-agent in retained and fresh lookups across separate frames, only after fenced native despawn was requested and returned. Never release on death, visual disappearance, elapsed time or helper return alone; never touch a different slot occupant. This candidate remains runtime unverified. Test a second summon in the same match and keep diagnostic failures separate from required reservation release.
 
 `addons/twins-armory` is a separate authored package for a fixed 500-salvage native Twins Mask purchase on Rex Infernus. It appends one cloned record to the native Ammo Mods category and lets the stock grid own focus, scrolling and input. Preserve all original records, category/filter contracts and other purchase menus. The former floating button and manual focus-edge splice were inaccessible in an owner test and are superseded. Keep server checks and do not broaden map support or bundle third-party Blood Burner source.
 
@@ -20,4 +24,4 @@ For integration tests, `BIKE_MENU_LUA` may point to a user's separately supplied
 
 Run a fresh offline match to validate native linking, asset residency before the quest, clearance, actual hostile HP reduction, player protection, wave accounting, timeout, disconnect and cleanup. Preserve the authentic boss and its map objects. Do not claim these gates from mocks or compilation. Do not shrink the actor until the full-size proof passes.
 
-Create a PR for repository changes and never merge automatically. The owner must supply or approve a source repository before publishing this new project.
+Use the existing [source PR](https://github.com/j6sistek-ui/ZRex/pull/1) for repository changes. Keep it draft and unmerged pending owner validation; never merge automatically. Publish only authored source, tests and documentation.

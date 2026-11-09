@@ -12,7 +12,7 @@ rawset(_G, "OwnerZRexMenu", state)
 local refs = { "super_dark_flare", "super_dark_flare_13s", "super_dark_flare_shadow_ball" }
 local nameKey = "owner_zrex_field_upgrade_name"
 local descriptionKey = "owner_zrex_field_upgrade_description"
-local title = "Ally Summon (Prototype)"
+local title = "ALLY -FieldUpgrade"
 local description = "Summon one ally for up to 240 seconds. Defaults to Uber Klaus for testing. Requires locally available creature assets and open ground."
 local hashes, lootIds, indexes = {}, {}, {}
 local hooked = setmetatable({}, { __mode = "k" })

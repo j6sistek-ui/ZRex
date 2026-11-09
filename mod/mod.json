@@ -1,7 +1,7 @@
 {
-    "name": "Ally Summon (Prototype)",
+    "name": "ALLY -FieldUpgrade",
     "author": "Local prototype",
-    "version": "0.3.1-poc",
+    "version": "0.3.2-poc",
     "type": "script",
     "description": "Dark Flare summons one timed ally, defaulting to Uber Klaus to validate the shared controller. Uses only available map assets; no automatic fallback. Z-Rex remains experimental and gameplay validation is pending."
 }
