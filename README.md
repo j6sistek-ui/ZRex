@@ -6,7 +6,7 @@ The display name covers both ally profiles. The existing `owner_zrex_poc` instal
 
 The separate [Twins Mask Arsenal addon](addons/twins-armory/README.md) extends the native Ammo Mods catalog on Rex Infernus. Its source and 36 native-contract checks are included independently of ALLY -FieldUpgrade; actual selection and purchase still need an owner retest.
 
-The controller keeps the owner reserved until native absence or a guarded terminal agent transition is confirmed, schedules native despawn independently of accessory cleanup, and attempts reachable hostile and owner-follow goals. A stuck close target can trigger a repositioning attempt. Z-Rex-specific parts, encounter guards and offspring cleanup apply only to that profile. The Klaus profile suppresses its own exploding-core ejection. The visual candidate refreshes the native friendly outline, hides only the summoned ally's native aim-target name/health bar, and adds a green owner-screen `ALLY: Uber Klaus` label after readiness, removed on retirement. A green overhead name is not implemented; these visuals require an in-game retest.
+The controller keeps the owner reserved until native absence or verified owned termination is confirmed, schedules native despawn independently of accessory cleanup, and attempts reachable hostile and owner-follow goals. A stuck close target can trigger a repositioning attempt. Z-Rex-specific parts, encounter guards and offspring cleanup apply only to that profile. The Klaus profile suppresses its own exploding-core ejection. The visual candidate refreshes the native friendly outline, hides only the summoned ally's native aim-target name/health bar, and adds a green owner-screen `ALLY: Uber Klaus` label after readiness, removed on retirement. A green overhead name is not implemented; these visuals require an in-game retest.
 
 ## Compatibility and status
 
@@ -18,7 +18,9 @@ Version 0.3.0 adds an explicit resident-enemy validation profile. Both profiles 
 
 Version 0.3.1 changed reservations to a unique summon key and replaced generic deletion with the stock agent-despawn helper. The owner then saw Klaus spawn and fight on Totenreich. All factory checks passed, but setup timed out after about 15 seconds without recording readiness, conversion or controller acceptance. Despawn left a dead, defined handle and the owner slot stayed locked.
 
-Candidate **0.3.2-poc (`ally3`) is runtime unverified**. Klaus readiness now requests string states explicitly with `getscriptablepartstate(..., 1)` and records the individual startup checks. Cleanup retains the absent-handle/empty-slot checks and adds a guarded agent-to-non-agent transition: only after an identity-checked despawn returns, both retained and fresh views must identify the same dead, non-agent instance on separate frames. Death, a hidden body, elapsed time or the helper return alone never unlocks another summon. The failed readiness condition and whether this terminal transition occurs still need a fresh test, including two summons in the same match. Keep the source PR draft and unmerged during validation.
+The 0.3.2-poc (`ally3`) retest on `zm_sat_hornet` recorded native readiness and the turn-helper return, then rejected its creature exit query before acceptance. Native despawn killed the actor but retained its agent type and erased its ownership field, so the old cleanup proof could not release the slot.
+
+Candidate **0.3.3-poc (`ally4`) is runtime unverified**. Klaus now uses its own reachable-point query and eight exit directions, recording why candidates fail; the earlier exact rejection remains unknown. Cleanup captures ownership before native despawn or a native death event, then requires the same dead actor in retained and fresh views on distinct frames. It can retire Klaus without waiting for the engine to free a dead agent slot. A bare dead-state reading, elapsed time or a helper return alone is insufficient. The Z-Rex proof stays separate; released tickets stop old expiry/despawn work. Verify both natural-death and timed cleanup, resummoning in the same match and the replacement surviving the original ticket's deadline. Keep the source PR draft and unmerged.
 
 Native compilation, shared-script dependency inspection, source review and menu tests are separate from gameplay acceptance. Retest movement, actual enemy damage, one-ally ownership, four-minute expiry and each receiver map. Keep full size until this proof works.
 
@@ -33,6 +35,8 @@ If creation has an unknown result, the owner slot deliberately stays locked for 
 ## Checks
 
 Prefer the Docker commands in `AGENTS.md`. The test dependency is lockfile-pinned and installed with lifecycle scripts disabled. The menu suite checks actual Lua behavior with opaque mode keys, reentrant menu calls, multiplayer isolation and both hook orders. `BIKE_MENU_LUA` can point to a separately supplied Blood Burner menu for local integration; it is never bundled here. `FENGARI_CLI` can select an existing workspace-only test runtime.
+
+Lifecycle checks execute the actual pure GSC predicates and removal wrapper with mocked lookup, time and actor-state inputs. These checks cover unknown states, both Klaus termination proofs, identity mismatch and repeated observations; they do not prove native event delivery or gameplay cleanup.
 
 Compile the GSC/HKS sources with the existing verified ACTS tool as described in `AGENTS.md`. Keep generated binaries outside `mod/`. A compiler or mocked-menu pass does not establish successful in-game loading or pathing.
 

@@ -26,7 +26,7 @@ function owner_zrex_mark( file, phase )
 {
     map = level.mapname ?? "pending";
     logstring( "OWNER_ZREX " + phase + " map=" + map );
-    nengine_store_set( "owner_zrex_poc", "build", "ally3" );
+    nengine_store_set( "owner_zrex_poc", "build", "ally4" );
     nengine_store_set( "owner_zrex_poc", "map", map );
     nengine_store_set( "owner_zrex_poc", "time_ms", gettime() );
     nengine_store_set( "owner_zrex_poc", "phase", phase );
@@ -320,6 +320,8 @@ function owner_zrex_factory( ticket, type, spot, angles, team )
     level thread owner_zrex_hard_expiry( ticket );
     ticket.original_origin = actor.origin;
     ticket.setup_watchdog = gettime() + 15000;
+    if ( ticket.profile.kind == "uber_klaus" )
+        level thread owner_zrex_observe_death( ticket );
     level thread owner_zrex_watch( ticket );
     level thread owner_zrex_wait_end( ticket );
     ticket.factory_returned = 1;
@@ -658,7 +660,7 @@ function owner_zrex_evidence( ticket, stage, why )
         }
     }
     nengine_store_set( "owner_zrex_v3", "stage", stage );
-    nengine_store_set( "owner_zrex_v3", "build", "ally3" );
+    nengine_store_set( "owner_zrex_v3", "build", "ally4" );
     nengine_store_set( "owner_zrex_v3", "kind", ticket.profile.kind );
     nengine_store_set( "owner_zrex_v3", "map", level.mapname ?? "pending" );
     nengine_store_set( "owner_zrex_v3", "summon", ticket.key );
@@ -673,9 +675,10 @@ function owner_zrex_evidence( ticket, stage, why )
     nengine_store_set( "owner_zrex_v3", "native_despawn_requested", istrue( ticket.native_despawn_requested ) );
     nengine_store_set( "owner_zrex_v3", "native_despawn_returned", istrue( ticket.native_despawn_returned ) );
     nengine_store_set( "owner_zrex_v3", "actor_isagent", exists && isagent( actor ) );
-    current_actor_id = exists ? actor getentitynumber() : undefined;
-    nengine_store_set( "owner_zrex_v3", "actor_current_id", current_actor_id ?? -1 );
-    nengine_store_set( "owner_zrex_v3", "actor_current_id_defined", isdefined( current_actor_id ) );
+    ticket.current_actor_id = undefined;
+    if ( exists ) ticket.current_actor_id = actor getentitynumber();
+    nengine_store_set( "owner_zrex_v3", "actor_current_id", ticket.current_actor_id ?? -1 );
+    nengine_store_set( "owner_zrex_v3", "actor_current_id_defined", isdefined( ticket.current_actor_id ) );
     nengine_store_set( "owner_zrex_v3", "actor_marker_defined", exists && isdefined( actor.owner_zrex_ticket ) );
     nengine_store_set( "owner_zrex_v3", "actor_marker_matches", exists && actor.owner_zrex_ticket == ticket );
     nengine_store_set( "owner_zrex_v3", "removal_proof", ticket.removal_proof ?? "not confirmed" );
@@ -718,28 +721,80 @@ function owner_zrex_evidence( ticket, stage, why )
     nengine_store_set( "owner_zrex_v3", "native_init_ready", ticket.native_init_ready ?? 0 );
     nengine_store_set( "owner_zrex_v3", "creature_nav_at_spawn", ticket.nav_at_spawn ?? -1 );
     nengine_store_set( "owner_zrex_v3", "creature_exit_found", ticket.walk_exit ?? -1 );
+    nengine_store_set( "owner_zrex_v3", "nav_queries", ticket.nav_queries ?? 0 );
+    nengine_store_set( "owner_zrex_v3", "nav_no_projection", ticket.nav_no_projection ?? 0 );
+    nengine_store_set( "owner_zrex_v3", "nav_snap_rejected", ticket.nav_snap_rejected ?? 0 );
+    nengine_store_set( "owner_zrex_v3", "nav_short_exit", ticket.nav_short_exit ?? 0 );
+    nengine_store_set( "owner_zrex_v3", "nav_no_path", ticket.nav_no_path ?? 0 );
+    nengine_store_set( "owner_zrex_v3", "nav_partial_path", ticket.nav_partial_path ?? 0 );
+    nengine_store_set( "owner_zrex_v3", "nav_last_reason", ticket.nav_last_reason ?? "unqueried" );
+    nengine_store_set( "owner_zrex_v3", "nav_path_points", ticket.nav_path_points ?? -1 );
+    nengine_store_set( "owner_zrex_v3", "nav_first_gap", ticket.nav_first_gap ?? -1 );
+    nengine_store_set( "owner_zrex_v3", "nav_last_gap", ticket.nav_last_gap ?? -1 );
+    nengine_store_set( "owner_zrex_v3", "despawn_fenced_alive", istrue( ticket.despawn_fenced_alive ) );
+    nengine_store_set( "owner_zrex_v3", "native_death_seen", istrue( ticket.native_death_seen ) );
     nengine_store_save( "owner_zrex_v3", file );
 }
 
 function owner_zrex_reachable( actor, position )
 {
-    profile = actor.owner_zrex_ticket.profile;
-    point = getclosestpointonnavmesh( position, actor, 1, 1, 1 );
-    if ( !isdefined( point ) || distancesquared( point, position ) > profile.nav_snap * profile.nav_snap )
+    ticket = actor.owner_zrex_ticket;
+    profile = ticket.profile;
+    ticket.nav_queries = ( ticket.nav_queries ?? 0 ) + 1;
+    ticket.nav_path_points = -1;
+    ticket.nav_first_gap = -1;
+    ticket.nav_last_gap = -1;
+    // Stock ordinary-ZM agents project to their reachable component before
+    // requesting a path. Keep Phobos's own five-argument projection unchanged.
+    if ( profile.kind == "uber_klaus" )
+        point = actor getclosestreachablepointonnavmesh( position );
+    else
+        point = getclosestpointonnavmesh( position, actor, 1, 1, 1 );
+    if ( !isdefined( point ) )
+    {
+        ticket.nav_no_projection = ( ticket.nav_no_projection ?? 0 ) + 1;
+        ticket.nav_last_reason = "no reachable projection";
         return undefined;
+    }
+    if ( distancesquared( point, position ) > profile.nav_snap * profile.nav_snap )
+    {
+        ticket.nav_snap_rejected = ( ticket.nav_snap_rejected ?? 0 ) + 1;
+        ticket.nav_last_reason = "projection outside snap limit";
+        return undefined;
+    }
     if ( distancesquared( actor.origin, point ) < profile.nav_close * profile.nav_close )
+    {
+        ticket.nav_last_reason = "already near projected point";
         return point;
+    }
     path = actor findpath( actor.origin, point );
+    if ( !isarray( path ) || path.size == 0 )
+    {
+        ticket.nav_path_points = -1;
+        if ( isarray( path ) ) ticket.nav_path_points = path.size;
+        ticket.nav_no_path = ( ticket.nav_no_path ?? 0 ) + 1;
+        ticket.nav_last_reason = "empty or unavailable path";
+        return undefined;
+    }
+    ticket.nav_path_points = path.size;
+    ticket.nav_first_gap = int( distance( path[0], point ) );
+    ticket.nav_last_gap = int( distance( path[path.size - 1], point ) );
     // BO7 AI findpath returns an indexed list of positions. A nonempty partial
     // path ending at a wall does not certify a reachable creature goal.
-    if ( isarray( path ) && path.size > 0 && distancesquared( path[path.size - 1], point ) <= profile.nav_close * profile.nav_close )
+    if ( distancesquared( path[path.size - 1], point ) <= profile.nav_close * profile.nav_close )
+    {
+        ticket.nav_last_reason = "complete reachable path";
         return point;
+    }
+    ticket.nav_partial_path = ( ticket.nav_partial_path ?? 0 ) + 1;
+    ticket.nav_last_reason = "path endpoint missed projected point";
     return undefined;
 }
 
 function owner_zrex_creature_clearance( ticket )
 {
     profile = ticket.profile;
+    spokes = profile.kind == "uber_klaus" ? 8 : 4;
     for ( pass = 0; pass < 3; pass++ )
     {
         actor = ticket.actor;
@@ -749,15 +804,20 @@ function owner_zrex_creature_clearance( ticket )
         ticket.nav_at_spawn = isdefined( actor_nav ) && distancesquared( actor.origin, actor_nav ) <= 96 * 96;
         ticket.walk_exit = 0;
         if ( ticket.nav_at_spawn )
-            for ( j = 0; j < 4; j++ )
+            for ( j = 0; j < spokes; j++ )
             {
-                dir = anglestoforward( ( 0, actor.angles[1] + 90*j, 0 ) );
+                dir = anglestoforward( ( 0, actor.angles[1] + ( 360 / spokes ) * j, 0 ) );
                 exit_point = owner_zrex_reachable( actor, actor.origin + dir * profile.exit_distance );
                 if ( isdefined( exit_point ) && distancesquared( exit_point, actor.origin ) >= profile.exit_minimum * profile.exit_minimum )
                 {
                     ticket.walk_exit = 1;
                     level thread owner_zrex_evidence( ticket, "creature_nav", "own nav origin and reachable exit" );
                     return true;
+                }
+                if ( isdefined( exit_point ) )
+                {
+                    ticket.nav_short_exit = ( ticket.nav_short_exit ?? 0 ) + 1;
+                    ticket.nav_last_reason = "reachable exit too close to spawn";
                 }
             }
         if ( pass < 2 ) wait 0.2;
@@ -1018,8 +1078,10 @@ function owner_zrex_clear_label( ticket )
 function owner_zrex_hard_expiry( ticket )
 {
     ticket endon( #"owner_zrex_done" );
+    if ( istrue( ticket.released ) ) return;
     while ( gettime() < ticket.deadline )
         wait min( 1, ( ticket.deadline - gettime() ) / 1000.0 );
+    if ( istrue( ticket.released ) ) return;
     if ( !istrue( ticket.closed ) )
         owner_zrex_retire( ticket, "240-second absolute limit" );
     else if ( isdefined( ticket.actor ) )
@@ -1039,6 +1101,7 @@ function owner_zrex_hide_owned_bar( actor )
 
 function owner_zrex_verify_retire( ticket )
 {
+    if ( istrue( ticket.released ) ) return;
     for ( attempt = 0; attempt < 3; attempt++ )
     {
         if ( owner_zrex_removed( ticket ) ) break;
@@ -1080,6 +1143,7 @@ function owner_zrex_removed( ticket )
 {
     // Never interpret an outstanding factory call's empty ticket as a free slot.
     if ( !istrue( ticket.factory_returned ) ) return false;
+    if ( istrue( ticket.released ) ) return true;
     if ( !isdefined( ticket.actor ) )
     {
         ticket.removal_proof = "original handle absent";
@@ -1094,15 +1158,27 @@ function owner_zrex_removed( ticket )
         ticket.removal_proof = "native slot absent";
         return true;
     }
-    // Some native removals retain a defined script reference. A dead body or helper
-    // return alone is insufficient: observe a true agent -> non-agent transition
-    // on the SAME instance after our fenced removal, on two separate game frames.
+    // The live Klaus retest showed that native death erases custom fields while
+    // retaining a dead agent handle. Prove termination from ownership captured
+    // BEFORE death, then sample both retained and fresh views on distinct frames.
     actor = ticket.actor;
-    same_owned_instance = fresh == actor && actor getentitynumber() == ticket.actor_id
-        && actor.owner_zrex_ticket == ticket;
-    terminal = owner_zrex_terminal_transition( ticket.created_as_agent,
-        ticket.native_despawn_requested, ticket.native_despawn_returned, same_owned_instance,
-        isalive( actor ), isagent( actor ), isalive( fresh ), isagent( fresh ) );
+    if ( ticket.profile.kind == "uber_klaus" )
+    {
+        fenced_kill = istrue( ticket.despawn_fenced_alive ) && ticket.despawn_actor == actor;
+        watched_death = istrue( ticket.native_death_seen ) && ticket.death_watched_actor == actor;
+        terminal = owner_zrex_klaus_terminated( ticket.created_as_agent, fenced_kill,
+            ticket.native_despawn_requested, ticket.native_despawn_returned,
+            watched_death, fresh == actor, isalive( actor ), isalive( fresh ) );
+    }
+    else
+    {
+        // Z-Rex has separate offspring/accessory risks; retain its existing proof.
+        same_owned_instance = fresh == actor && actor getentitynumber() == ticket.actor_id
+            && actor.owner_zrex_ticket == ticket;
+        terminal = owner_zrex_terminal_transition( ticket.created_as_agent,
+            ticket.native_despawn_requested, ticket.native_despawn_returned, same_owned_instance,
+            isalive( actor ), isagent( actor ), isalive( fresh ), isagent( fresh ) );
+    }
     if ( !terminal )
     {
         ticket.nonagent_observed_at = undefined;
@@ -1114,8 +1190,31 @@ function owner_zrex_removed( ticket )
         return false;
     }
     if ( gettime() <= ticket.nonagent_observed_at ) return false;
-    ticket.removal_proof = "fenced native removal; same dead non-agent confirmed across frames";
+    ticket.removal_proof = ticket.profile.kind == "uber_klaus"
+        ? "captured owned native termination; same dead actor confirmed across frames"
+        : "fenced native removal; same dead non-agent confirmed across frames";
     return true;
+}
+
+function owner_zrex_observe_death( ticket )
+{
+    ticket endon( #"owner_zrex_done" );
+    actor = ticket.actor;
+    if ( !isdefined( actor ) || !isalive( actor ) || !isagent( actor )
+        || actor.owner_zrex_ticket != ticket || actor getentitynumber() != ticket.actor_id ) return;
+    ticket.death_watched_actor = actor;
+    // Level-owned: do not end this observer on the very event it records.
+    actor waittill( #"death" );
+    ticket.native_death_seen = 1;
+    level thread owner_zrex_evidence( ticket, "native_death", "captured owned actor emitted death" );
+}
+
+function owner_zrex_klaus_terminated( created_agent, fenced_despawn, requested, returned, watched_death, same_instance, actor_alive, fresh_alive )
+{
+    return istrue( created_agent )
+        && ( ( istrue( fenced_despawn ) && istrue( requested ) && istrue( returned ) ) || istrue( watched_death ) )
+        && istrue( same_instance ) && isdefined( actor_alive ) && isdefined( fresh_alive )
+        && !actor_alive && !fresh_alive;
 }
 
 function owner_zrex_terminal_transition( created_agent, requested, returned, same_instance, actor_alive, actor_agent, fresh_alive, fresh_agent )
@@ -1128,7 +1227,7 @@ function owner_zrex_terminal_transition( created_agent, requested, returned, sam
 
 function owner_zrex_release( ticket )
 {
-    // Native absence or a verified terminal agent transition is required.
+    // Native absence or a verified owned termination is required.
     // A deadline, hidden/dead model, or return from despawnagent alone is not.
     if ( !owner_zrex_removed( ticket ) ) return false;
     owner = ticket.owner;
@@ -1142,16 +1241,19 @@ function owner_zrex_release( ticket )
 
 function owner_zrex_native_despawn( ticket, attempt )
 {
+    if ( istrue( ticket.released ) ) return;
     // One frame lets the SEPARATE exact-owned cleanup workers release attachments.
     // Stock DOA/Portal Summon use despawnagent for AI. Generic delete returned while
     // our live agent kept fighting; only the verifier can release its reservation.
     waitframe();
+    if ( istrue( ticket.released ) ) return;
     if ( owner_zrex_removed( ticket ) ) return;
     actor = ticket.actor;
     if ( !isdefined( actor ) || actor getentitynumber() != ticket.actor_id || actor.owner_zrex_ticket != ticket )
         return;
     // A pending second terminal sample must not send the AI helper a non-agent.
     if ( !isagent( actor ) ) return;
+    if ( ticket.profile.kind == "uber_klaus" && !isalive( actor ) ) return;
     fresh = getentbynum( ticket.actor_id );
     if ( !isdefined( fresh ) || fresh != actor || fresh.owner_zrex_ticket != ticket )
     {
@@ -1163,6 +1265,10 @@ function owner_zrex_native_despawn( ticket, attempt )
         return;
     }
     if ( ticket.profile.kind == "uber_klaus" ) actor.var_c3746c711044489d = 1;
+    // Every mutable fence above passed on a live agent. Native death may erase
+    // its custom marker, so preserve this exact pre-call receipt on the ticket.
+    ticket.despawn_actor = actor;
+    ticket.despawn_fenced_alive = 1;
     ticket.native_despawn_requested = 1;
     actor agent_utils::despawnagent();
     ticket.native_despawn_returned = 1;
