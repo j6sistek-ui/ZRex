@@ -32,7 +32,13 @@ The 0.3.2-poc retest on `zm_sat_hornet` passed native readiness and recorded the
 
 The **0.3.3-poc (`ally4`) retests on Paradox and Ashes** recorded `native_ready` and `converted`, then all 24 actor-reachable queries returned undefined. Each failed setup recorded native death and `retire_confirmed` with the slot released. Ashes also created a second summon in the same match after the first release, then encountered the same navigation failure and retired. These receipts confirm forced-failure cleanup and same-match recreation only; they do not prove natural death, accepted movement or the 240-second lifetime.
 
-Candidate **0.3.4-poc (`ally5`) is runtime unverified**. Klaus tries the stock-attractor query, actor-reachable query and nearest-point query, keeping native results on the ticket. Every distant projection must still pass snap and full-path endpoint checks, and a usable exit must meet its separate minimum distance. Z-Rex keeps the original generic query. There is no proven compiler bug: static inspection found matching local store/read slots in ally4. The cleanup proof remains unchanged: captured ownership and native termination evidence, then the same dead actor on distinct frames. Check `removal_proof`; a bare dead-state reading or helper return alone is insufficient. Test navigation, natural death, timed retirement and a replacement surviving the old ticket's deadline. Keep the source PR draft and unmerged.
+**0.3.4-poc (`ally5`): first Ashes pass accepted on November 10, 2026.** The stock Zombie-attractor query returned a complete usable path. Both summons reached `accepted`, moved and recorded damage against hostile AI.
+
+The first summon lived for 80.032 seconds. The mod had not requested despawn, and cleanup released the slot 5.12 seconds after the game recorded his death. These receipts prove an observed death and recovery, but do not identify the killer or distinguish combat from another native scripted death.
+
+The second summon remained alive beyond the first ticket's deadline, reached its own four-minute limit, and retired with `240-second absolute limit`. Native despawn returned 32 milliseconds later; the slot released 5.248 seconds after the limit. This confirms same-match resummoning after early death, survival past the stale deadline, and timed cleanup for this run. The tester also reported the ally fighting Ashes' normal enemy Klaus without preventing that enemy from appearing.
+
+The owner approved publishing this first pass. Other maps, detailed visuals, player-damage protection, duplicate activation, disconnect handling, a further summon after timed expiry and the first death's cause remain open. Twins is a separate addon whose native menu and purchase still need a live test. Private receipts and footage are not part of the install package.
 
 ## Research boundaries
 

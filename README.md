@@ -1,6 +1,8 @@
 # ALLY -FieldUpgrade
 
-Dark Flare summons one ally for up to 240 seconds. The default validation profile is **Uber Klaus**, using existing creature assets to test the same ownership, conversion, movement, damage and cleanup controller. The experimental full-size Z-Rex profile remains available explicitly; its cross-map loading is unfinished. The base upgrade and both augment variants keep their native identity, cost and loadout selection. This is original offline mod source; no game assets or third-party mod packages are included.
+Replace Dark Flare with **Uber Klaus fighting on your side**. He stays for up to four minutes, or until he dies, and you can summon him again once the upgrade recharges and cleanup finishes. This first pass has been tested on Ashes of the Damned. Other maps still need testing.
+
+The base upgrade and both augment variants keep their original loadout slots. The experimental full-size Z-Rex option is still available, but loading him across maps is unfinished. This repository contains original offline mod source, without game assets or third-party mod packages.
 
 The display name covers both ally profiles. The existing `owner_zrex_poc` installation folder, source filenames, internal IDs and profile settings stay unchanged.
 
@@ -22,9 +24,13 @@ The 0.3.2-poc (`ally3`) retest on `zm_sat_hornet` recorded native readiness and 
 
 The **0.3.3-poc (`ally4`) retests on Paradox and Ashes** reached native readiness and conversion, then rejected all 24 actor-reachable projection queries as undefined. Forced setup retirement recorded native death and confirmed slot release on both maps. Ashes also created a second summon in the same match after release; it hit the same navigation failure and retired. This confirms recovery from those setup failures, not successful movement, natural death or the full 240-second lifetime.
 
-Candidate **0.3.4-poc (`ally5`) is runtime unverified**. Klaus tries the stock-attractor projection query, the actor-reachable query, then the existing nearest-point query. Results stay on the summon ticket. Every distant point still needs the same snap limit and complete path endpoint; a nearby-point shortcut cannot meet the separate exit minimum. Z-Rex retains its one generic query. Static bytecode inspection found no branch-local store/read mismatch, so this change does not claim a compiler bug. Cleanup still requires captured ownership and native termination evidence, with repeated same-actor dead observations; a bare dead state, elapsed time or helper return alone is insufficient. Verify movement, natural-death and timed cleanup, and a replacement surviving the original ticket's deadline. Keep the source PR draft and unmerged.
+**0.3.4-poc (`ally5`) passed its first Ashes playtest on November 10, 2026.** Klaus spawned, walked and damaged enemies. The first summon died after about 80 seconds without a despawn request from this mod; the logs do not identify what killed him. Cleanup completed, and a second summon worked in the same match. That second Klaus survived the first summon's old deadline, reached his own four-minute limit, then despawned and released the slot correctly. The tester also reported him fighting the map's normal enemy Klaus.
 
-Native compilation, shared-script dependency inspection, source review and menu tests are separate from gameplay acceptance. Retest movement, actual enemy damage, one-ally ownership, four-minute expiry and each receiver map. Keep full size until this proof works.
+Klaus now tries the stock Zombie-attractor navigation query before two checked fallbacks. The working Ashes test used that first route. This fixes the repeated placement rejection seen in earlier builds; it does not establish every-map support. Z-Rex keeps its original navigation route and separate resource checks.
+
+Still to test: the other maps, all attacks against the player, detailed nameplate/HUD behavior, simultaneous activation, disconnect cleanup, and a new summon after timed expiry. The first summon's early death also needs a cause. Twins selection and purchase remain a separate test.
+
+Compilation, source review and mocked menu checks are separate from gameplay results. See the [validation notes](docs/ALLY_VALIDATION.md) for what passed and what remains open, and the [publishing notes](docs/PUBLISHING.md) for the Kronos Workshop package.
 
 ## Offline installation
 
