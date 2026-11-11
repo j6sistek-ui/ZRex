@@ -1,0 +1,16 @@
+node_modules/
+*.gscc
+*.luac
+artifacts/
+game-captures/
+.env
+.env.*
+*.exe
+*.dll
+*.ff
+*.fp
+*.xpak
+*.xsub
+*.bin
+*.log
+*.zip

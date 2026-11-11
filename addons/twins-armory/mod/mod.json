@@ -1,0 +1,7 @@
+{
+    "name": "Twins Mask Arsenal (POC)",
+    "author": "Local prototype",
+    "version": "0.1.0-poc",
+    "type": "script",
+    "description": "Adds a Twins Mask purchase button inside the Arsenal on Rex Infernus. Default price: 500 salvage. Native mask lightning; regular ammo mods are preserved."
+}

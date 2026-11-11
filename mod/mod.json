@@ -1,0 +1,7 @@
+{
+    "name": "ALLY -FieldUpgrade",
+    "author": "j6sistek-ui",
+    "version": "0.3.4-poc",
+    "type": "script",
+    "description": "Replace Dark Flare with Uber Klaus fighting on your side for up to four minutes. First pass tested on Ashes of the Damned; other maps still need testing."
+}
