@@ -26,7 +26,7 @@ function owner_zrex_mark( file, phase )
 {
     map = level.mapname ?? "pending";
     logstring( "OWNER_ZREX " + phase + " map=" + map );
-    nengine_store_set( "owner_zrex_poc", "build", "ally4" );
+    nengine_store_set( "owner_zrex_poc", "build", "ally5" );
     nengine_store_set( "owner_zrex_poc", "map", map );
     nengine_store_set( "owner_zrex_poc", "time_ms", gettime() );
     nengine_store_set( "owner_zrex_poc", "phase", phase );
@@ -660,7 +660,7 @@ function owner_zrex_evidence( ticket, stage, why )
         }
     }
     nengine_store_set( "owner_zrex_v3", "stage", stage );
-    nengine_store_set( "owner_zrex_v3", "build", "ally4" );
+    nengine_store_set( "owner_zrex_v3", "build", "ally5" );
     nengine_store_set( "owner_zrex_v3", "kind", ticket.profile.kind );
     nengine_store_set( "owner_zrex_v3", "map", level.mapname ?? "pending" );
     nengine_store_set( "owner_zrex_v3", "summon", ticket.key );
@@ -722,6 +722,12 @@ function owner_zrex_evidence( ticket, stage, why )
     nengine_store_set( "owner_zrex_v3", "creature_nav_at_spawn", ticket.nav_at_spawn ?? -1 );
     nengine_store_set( "owner_zrex_v3", "creature_exit_found", ticket.walk_exit ?? -1 );
     nengine_store_set( "owner_zrex_v3", "nav_queries", ticket.nav_queries ?? 0 );
+    nengine_store_set( "owner_zrex_v3", "nav_projection_attempts", ticket.nav_projection_attempts ?? 0 );
+    nengine_store_set( "owner_zrex_v3", "nav_projection_source", ticket.nav_projection_source ?? "unqueried" );
+    nengine_store_set( "owner_zrex_v3", "nav_accepted_source", ticket.nav_accepted_source ?? "none" );
+    nengine_store_set( "owner_zrex_v3", "nav_attractor_defined", ticket.nav_attractor_defined ?? -1 );
+    nengine_store_set( "owner_zrex_v3", "nav_actor_defined", ticket.nav_actor_defined ?? -1 );
+    nengine_store_set( "owner_zrex_v3", "nav_nearest_defined", ticket.nav_nearest_defined ?? -1 );
     nengine_store_set( "owner_zrex_v3", "nav_no_projection", ticket.nav_no_projection ?? 0 );
     nengine_store_set( "owner_zrex_v3", "nav_snap_rejected", ticket.nav_snap_rejected ?? 0 );
     nengine_store_set( "owner_zrex_v3", "nav_short_exit", ticket.nav_short_exit ?? 0 );
@@ -741,53 +747,80 @@ function owner_zrex_reachable( actor, position )
     ticket = actor.owner_zrex_ticket;
     profile = ticket.profile;
     ticket.nav_queries = ( ticket.nav_queries ?? 0 ) + 1;
-    ticket.nav_path_points = -1;
-    ticket.nav_first_gap = -1;
-    ticket.nav_last_gap = -1;
-    // Stock ordinary-ZM agents project to their reachable component before
-    // requesting a path. Keep Phobos's own five-argument projection unchanged.
-    if ( profile.kind == "uber_klaus" )
-        point = actor getclosestreachablepointonnavmesh( position );
-    else
-        point = getclosestpointonnavmesh( position, actor, 1, 1, 1 );
-    if ( !isdefined( point ) )
+    ticket.nav_attractor_defined = -1;
+    ticket.nav_actor_defined = -1;
+    ticket.nav_nearest_defined = -1;
+    ticket.nav_accepted_source = "none";
+    routes = profile.kind == "uber_klaus" ? 3 : 1;
+    for ( route = 0; route < routes; route++ )
     {
-        ticket.nav_no_projection = ( ticket.nav_no_projection ?? 0 ) + 1;
-        ticket.nav_last_reason = "no reachable projection";
-        return undefined;
-    }
-    if ( distancesquared( point, position ) > profile.nav_snap * profile.nav_snap )
-    {
-        ticket.nav_snap_rejected = ( ticket.nav_snap_rejected ?? 0 ) + 1;
-        ticket.nav_last_reason = "projection outside snap limit";
-        return undefined;
-    }
-    if ( distancesquared( actor.origin, point ) < profile.nav_close * profile.nav_close )
-    {
-        ticket.nav_last_reason = "already near projected point";
-        return point;
-    }
-    path = actor findpath( actor.origin, point );
-    if ( !isarray( path ) || path.size == 0 )
-    {
+        ticket.nav_projection_attempts = ( ticket.nav_projection_attempts ?? 0 ) + 1;
         ticket.nav_path_points = -1;
-        if ( isarray( path ) ) ticket.nav_path_points = path.size;
-        ticket.nav_no_path = ( ticket.nav_no_path ?? 0 ) + 1;
-        ticket.nav_last_reason = "empty or unavailable path";
-        return undefined;
+        ticket.nav_first_gap = -1;
+        ticket.nav_last_gap = -1;
+        ticket.nav_point = undefined;
+        ticket.nav_path = undefined;
+        // Stock Zombie attractors try this actor-aware global query first.
+        // Keep native results on the ticket, as with the working actor-ID receipt.
+        // This is not a claim that the earlier local store was compiled wrongly.
+        if ( profile.kind == "uber_klaus" && route == 0 )
+        {
+            ticket.nav_projection_source = "zombie_attractor";
+            ticket.nav_point = function_9ad7279ee518d022( position, actor );
+            ticket.nav_attractor_defined = isdefined( ticket.nav_point );
+        }
+        else if ( profile.kind == "uber_klaus" && route == 1 )
+        {
+            ticket.nav_projection_source = "actor_reachable";
+            ticket.nav_point = actor getclosestreachablepointonnavmesh( position );
+            ticket.nav_actor_defined = isdefined( ticket.nav_point );
+        }
+        else
+        {
+            ticket.nav_projection_source = "nearest_actor_nav";
+            ticket.nav_point = getclosestpointonnavmesh( position, actor, 1, 1, 1 );
+            ticket.nav_nearest_defined = isdefined( ticket.nav_point );
+        }
+        if ( !isdefined( ticket.nav_point ) )
+        {
+            ticket.nav_no_projection = ( ticket.nav_no_projection ?? 0 ) + 1;
+            ticket.nav_last_reason = "no reachable projection";
+            continue;
+        }
+        if ( distancesquared( ticket.nav_point, position ) > profile.nav_snap * profile.nav_snap )
+        {
+            ticket.nav_snap_rejected = ( ticket.nav_snap_rejected ?? 0 ) + 1;
+            ticket.nav_last_reason = "projection outside snap limit";
+            continue;
+        }
+        if ( distancesquared( actor.origin, ticket.nav_point ) < profile.nav_close * profile.nav_close )
+        {
+            ticket.nav_last_reason = "already near projected point";
+            ticket.nav_accepted_source = ticket.nav_projection_source;
+            return ticket.nav_point;
+        }
+        ticket.nav_path = actor findpath( actor.origin, ticket.nav_point );
+        if ( !isarray( ticket.nav_path ) || ticket.nav_path.size == 0 )
+        {
+            if ( isarray( ticket.nav_path ) ) ticket.nav_path_points = ticket.nav_path.size;
+            ticket.nav_no_path = ( ticket.nav_no_path ?? 0 ) + 1;
+            ticket.nav_last_reason = "empty or unavailable path";
+            continue;
+        }
+        ticket.nav_path_points = ticket.nav_path.size;
+        ticket.nav_first_gap = int( distance( ticket.nav_path[0], ticket.nav_point ) );
+        ticket.nav_last_gap = int( distance( ticket.nav_path[ticket.nav_path.size - 1], ticket.nav_point ) );
+        // Every projection, including the nearest-point fallback, must pass
+        // the SAME full-path endpoint test. A returned vector is not enough.
+        if ( distancesquared( ticket.nav_path[ticket.nav_path.size - 1], ticket.nav_point ) <= profile.nav_close * profile.nav_close )
+        {
+            ticket.nav_last_reason = "complete reachable path";
+            ticket.nav_accepted_source = ticket.nav_projection_source;
+            return ticket.nav_point;
+        }
+        ticket.nav_partial_path = ( ticket.nav_partial_path ?? 0 ) + 1;
+        ticket.nav_last_reason = "path endpoint missed projected point";
     }
-    ticket.nav_path_points = path.size;
-    ticket.nav_first_gap = int( distance( path[0], point ) );
-    ticket.nav_last_gap = int( distance( path[path.size - 1], point ) );
-    // BO7 AI findpath returns an indexed list of positions. A nonempty partial
-    // path ending at a wall does not certify a reachable creature goal.
-    if ( distancesquared( path[path.size - 1], point ) <= profile.nav_close * profile.nav_close )
-    {
-        ticket.nav_last_reason = "complete reachable path";
-        return point;
-    }
-    ticket.nav_partial_path = ( ticket.nav_partial_path ?? 0 ) + 1;
-    ticket.nav_last_reason = "path endpoint missed projected point";
     return undefined;
 }
 
